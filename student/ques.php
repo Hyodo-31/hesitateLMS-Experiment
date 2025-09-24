@@ -977,9 +977,20 @@ $stmt->close();
             X_p = DefaultX_r3;
             Y_p = DefaultY_r3;
         } else if (array_flag2 == 4) {
+            // ▼▼▼ ここからが修正箇所です ▼▼▼
+            // 解答欄の場合は、整列処理を行いません。
+            // 単純に配列にドラッグされた要素を追加するだけにします。
             mylabelarray3 = Mylabels_ea.slice(0);
-            X_p = DefaultX_ea;
-            Y_p = DefaultY_ea;
+            if (MyControls.length > 0) {
+                for (k = 0; k < MyControls.length; k++) {
+                    mylabelarray3.push(MyControls[k]);
+                }
+            } else {
+                mylabelarray3.push(sender);
+            }
+            Mylabels_ea = mylabelarray3.slice(0);
+            return mylabelarray3; // 座標の再計算は行わずに処理を終了
+            // ▲▲▲ 修正はここまで ▲▲▲
         }
         var i;
         var j;
@@ -1245,43 +1256,47 @@ $stmt->close();
             } else {
                 mylabelarray.splice(index_sender, 1);
             }
-            //各フラグに合わせて、デフォルトのYの値を変える。Xはついで。
-            //array_flagは、ラベルのドラッグがどこで開始したかを示している。(問題提示欄か、レジスタか..？)
-            //それによってデフォルトのY座標を変化させる。(ここでは、元あったラベルの並べ替えを行うので。)
-            //ここで示すX,Y座標は、ドラッグ中のラベルがあったラベル群のX,Yだよ。
-            var X_p = 0;
-            var Y_p = 0;
-            var DestX = 0;
-            var DestY = 0;
-            if (array_flag == 1) {
-                X_p = DefaultX_r1;
-                Y_p = DefaultY_r1;
-            } else if (array_flag == 2) {
-                X_p = DefaultX_r2;
-                Y_p = DefaultY_r2;
-            } else if (array_flag == 3) {
-                X_p = DefaultX_r3;
-                Y_p = DefaultY_r3;
-            } else if (array_flag == 4) {
-                X_p = DefaultX_ea;
-                Y_p = DefaultY_ea;
-            }
-            //相対位置の計算
-            var hl = YAHOO.util.Dom.getRegion(hLabel);
-            DestX = hl.left + event.x - DiffPoint.x;
-            DestY = hl.top + event.y - DiffPoint.y;
-
-            //元の位置にあるラベルの位置を決定
-            for (i = 0; i <= mylabelarray.length; i++) {
-                if (i == 0) {
-                    YAHOO.util.Dom.setX(mylabelarray[i], X_p);
-                    YAHOO.util.Dom.setY(mylabelarray[i], Y_p);
-                } else {
-                    var al = YAHOO.util.Dom.getRegion(mylabelarray[i - 1]);
-                    YAHOO.util.Dom.setX(mylabelarray[i], al.right + 17); //解像度がちがうため？
-                    YAHOO.util.Dom.setY(mylabelarray[i], Y_p);
+            // ▼▼▼ ここからが修正箇所です ▼▼▼
+            // ドラッグ開始元が解答欄(array_flag == 4)でなければ、残りの単語を整列する
+            if (array_flag != 4) {
+                //各フラグに合わせて、デフォルトのYの値を変える。Xはついで。
+                //array_flagは、ラベルのドラッグがどこで開始したかを示している。(問題提示欄か、レジスタか..？)
+                //それによってデフォルトのY座標を変化させる。(ここでは、元あったラベルの並べ替えを行うので。)
+                //ここで示すX,Y座標は、ドラッグ中のラベルがあったラベル群のX,Yだよ。
+                var X_p = 0;
+                var Y_p = 0;
+                var DestX = 0;
+                var DestY = 0;
+                if (array_flag == 1) {
+                    X_p = DefaultX_r1;
+                    Y_p = DefaultY_r1;
+                } else if (array_flag == 2) {
+                    X_p = DefaultX_r2;
+                    Y_p = DefaultY_r2;
+                } else if (array_flag == 3) {
+                    X_p = DefaultX_r3;
+                    Y_p = DefaultY_r3;
                 }
-            }
+                // (元のコードでは array_flag == 4 の場合の分岐がありましたが、
+                // このifブロック内では不要になるため、ここでは省略しています)
+
+                //相対位置の計算
+                var hl = YAHOO.util.Dom.getRegion(hLabel);
+                DestX = hl.left + event.x - DiffPoint.x;
+                DestY = hl.top + event.y - DiffPoint.y;
+
+                //元の位置にあるラベルの位置を決定
+                for (i = 0; i <= mylabelarray.length; i++) {
+                    if (i == 0) {
+                        YAHOO.util.Dom.setX(mylabelarray[i], X_p);
+                        YAHOO.util.Dom.setY(mylabelarray[i], Y_p);
+                    } else {
+                        var al = YAHOO.util.Dom.getRegion(mylabelarray[i - 1]);
+                        YAHOO.util.Dom.setX(mylabelarray[i], al.right + 17); //解像度がちがうため？
+                        YAHOO.util.Dom.setY(mylabelarray[i], Y_p);
+                    }
+                }
+            } // ▲▲▲ if (array_flag != 4) の閉じカッコを追加 ▲▲▲
         }
 
         //経過時間取得-----
@@ -1597,7 +1612,8 @@ $stmt->close();
             }
         }
         //問題提示欄には表示させない
-        if (line_flag != 0) {
+        // ▼▼▼ このif文の条件を変更します ▼▼▼
+        if (line_flag != 0 && line_flag != 4) {
             draw3();
             draw2(line_x, line_y, line_y2);
         } else {
@@ -1723,30 +1739,37 @@ $stmt->close();
             alert("失敗g");
         }
 
-        // ======================= ▼▼▼ ここからが修正箇所です ▼▼▼ =======================
-        // 英語テストの場合のみ、先頭を大文字にし、文末に句読点を追加する
-        if (testLangType !== 'ja') {
-            //先頭の文字列を大文字に変換
-            str1 = Mylabels_ea[0].innerHTML.substr(0, 1);
-            str2 = Mylabels_ea[0].innerHTML.substr(1);
-            Mylabels_ea[0].innerHTML = str1.toUpperCase() + str2;
+        // ▼▼▼ ここから下のブロックを、ごっそり差し替えてください ▼▼▼
 
-            //ピリオドまたはクエスチョンを最後につける
-            Mylabels_ea[Mylabels2.length - 1].innerHTML += PorQ;
-        }
+        // 解答欄(Mylabels_ea)にある単語要素を、x座標の昇順でソート
+        var sorted_labels = Mylabels_ea.filter(function(el) {
+            return el;
+        }).sort(function(a, b) {
+            var x_a = YAHOO.util.Dom.getRegion(a).left;
+            var x_b = YAHOO.util.Dom.getRegion(b).left;
+            return x_a - x_b;
+        });
 
-        //自分の解答を文字列に格納
-        // ★注意：重複していたコードを削除し、こちらに一本化しました。
-        MyAnswer = ""; // 解答文字列を初期化
-        for (i = 0; i <= Mylabels2.length - 1; i++) {
-            //区切りラベルは解答に入れない
-            if (Mylabels_ea[i].innerHTML == "/") {
+        // ソートされた順に単語を連結して解答文を作成
+        MyAnswer = "";
+        for (var i = 0; i < sorted_labels.length; i++) {
+            // 区切りラベルは解答に入れない
+            if (sorted_labels[i].innerHTML == "/") {
                 continue;
             }
-            MyAnswer += Mylabels_ea[i].innerHTML + " ";
+            MyAnswer += sorted_labels[i].innerHTML + " ";
         }
-        MyAnswer = MyAnswer.replace(/^\s+|\s+$/g, ""); //前後の空白削除
-        // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
+        MyAnswer = MyAnswer.trim(); // 前後の空白を削除
+
+        // 英語テストの場合のみ、文頭の大文字化と文末の句読点追加を行う
+        if (testLangType !== 'ja' && MyAnswer) {
+            // 文頭を大文字に
+            MyAnswer = MyAnswer.charAt(0).toUpperCase() + MyAnswer.slice(1);
+            // 文末に句読点を追加
+            MyAnswer += PorQ;
+        }
+
+        // ▲▲▲ 差し替えはここまで ▲▲▲
 
         WriteAnswer = MyAnswer;
         $QAData["EndSentence"] = MyAnswer;
