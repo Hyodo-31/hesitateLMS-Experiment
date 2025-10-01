@@ -194,6 +194,7 @@ $_SESSION["page"] = "ques";
     var attempt = 0; //20250514追加
 
     var JapaneseAnswer = "";
+    var sorted_labels = new Array();
     var Qid = <?php echo $Qid = $_GET['Qid']; ?> //LineQuesFormのボタンのURL引数
     /*
     var nEnd;
@@ -1742,12 +1743,12 @@ $stmt->close();
         // ▼▼▼ ここから下のブロックを、ごっそり差し替えてください ▼▼▼
 
         // 解答欄(Mylabels_ea)にある単語要素を、x座標の昇順でソート
-        var sorted_labels = Mylabels_ea.filter(function(el) {
+        sorted_labels = Mylabels_ea.filter(function(el) {
             return el;
         }).sort(function(a, b) {
-            var x_a = YAHOO.util.Dom.getRegion(a).left;
+            var x_a = YAHOO.util.Dom.getRegion(a).left; // 各単語の左端のx座標を取得
             var x_b = YAHOO.util.Dom.getRegion(b).left;
-            return x_a - x_b;
+            return x_a - x_b; // x座標が小さい順（左から右）に並べ替え
         });
 
         // ソートされた順に単語を連結して解答文を作成
@@ -1835,7 +1836,7 @@ $stmt->close();
             HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
             for (i = 0; i <= Mylabels2.length - 1; i++) {
                 HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                    Mylabels_ea[i].innerHTML + "</label>";
+                    sorted_labels[i].innerHTML + "</label>";
 
             }
             HearingHtml += "</div><textarea id='comment' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2265,7 +2266,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2283,7 +2284,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2301,7 +2302,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2319,7 +2320,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2337,7 +2338,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2355,7 +2356,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2373,7 +2374,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2391,7 +2392,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2408,7 +2409,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2425,7 +2426,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2442,7 +2443,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2459,7 +2460,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2476,7 +2477,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2493,7 +2494,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2510,7 +2511,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2527,7 +2528,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2544,7 +2545,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2561,7 +2562,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2578,7 +2579,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2595,7 +2596,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2612,7 +2613,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
-                Mylabels_ea[i].innerHTML + "</label>";
+                sorted_labels[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
