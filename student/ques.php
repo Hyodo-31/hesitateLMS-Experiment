@@ -136,11 +136,11 @@ $_SESSION["page"] = "ques";
     var DefaultX = 30; //ラベルの初期値
     var DefaultY = 100;
     var DefaultX_r1 = 30; //ラベルの初期値
-    var DefaultY_r1 = 250;
+    var DefaultY_r1 = 310;
     var DefaultX_r2 = 30; //ラベルの初期値
-    var DefaultY_r2 = 330;
+    var DefaultY_r2 = 390;
     var DefaultX_r3 = 30; //ラベルの初期値
-    var DefaultY_r3 = 410;
+    var DefaultY_r3 = 470;
     var DefaultX_ea = 30; //ラベルの初期値
     var DefaultY_ea = 170;
     var sPos = new Point(0, 0);
@@ -267,8 +267,8 @@ $stmt->close();
 
 
     //ランダムに配列を並び替えるソース
-    Array.prototype.random = function() {
-        this.sort(function(a, b) {
+    Array.prototype.random = function () {
+        this.sort(function (a, b) {
             var i = Math.ceil(Math.random() * 100) % 2;
             if (i == 0) {
                 return -1;
@@ -280,7 +280,7 @@ $stmt->close();
     //-------------------------------------------------------------
     //配列に指定した値があるかチェック
     if (!Array.prototype.contains) {
-        Array.prototype.contains = function(value) {
+        Array.prototype.contains = function (value) {
             for (var i in this) {
                 if (this.hasOwnProperty(i) && this[i] === value) {
                     return true;
@@ -332,12 +332,12 @@ $stmt->close();
         new Ajax.Request(URL + 'linemouse.php', {
             method: 'get',
             onSuccess: getm,
-            onFailure: function(req) {
+            onFailure: function (req) {
                 getError(req, "linemouse.php")
             }
         });
 
-        function getm(res) {}
+        function getm(res) { }
         //======================================================
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
@@ -346,7 +346,7 @@ $stmt->close();
         new Ajax.Request(URL + 'load.php', {
             method: 'get',
             onSuccess: getOID,
-            onFailure: function(req) {
+            onFailure: function (req) {
                 getError(req, "load.php")
             },
             parameters: $params
@@ -406,7 +406,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function(req) {
+                        onFailure: function (req) {
                             getError(req, "getattempt.php")
                         },
                         parameters: $params_for_attempt
@@ -424,7 +424,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getResponse,
-                        onFailure: function(req) {
+                        onFailure: function (req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -445,7 +445,7 @@ $stmt->close();
                         {
                             method: 'get',
                             onSuccess: getStart,
-                            onFailure: function(req) {
+                            onFailure: function (req) {
                                 getError(req, "dbsyori.php")
                             },
                             parameters: $params
@@ -461,7 +461,7 @@ $stmt->close();
                             {
                                 method: 'get',
                                 onSuccess: getDivide,
-                                onFailure: function(req) {
+                                onFailure: function (req) {
                                     getError(req, "dbsyori.php")
                                 },
                                 parameters: $params
@@ -477,7 +477,7 @@ $stmt->close();
                                 {
                                     method: 'get',
                                     onSuccess: getFix,
-                                    onFailure: function(req) {
+                                    onFailure: function (req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -554,13 +554,13 @@ $stmt->close();
 
                                     el = YAHOO.util.Dom.getRegion(p);
                                     //イベントハンドラの追加
-                                    dd[i].onMouseDown = function(e) {
+                                    dd[i].onMouseDown = function (e) {
                                         MyLabels_MouseDown(this.getDragEl())
                                     }
-                                    dd[i].onMouseUp = function(e) {
+                                    dd[i].onMouseUp = function (e) {
                                         MyLabels_MouseUp(this.getDragEl())
                                     }
-                                    dd[i].onDrag = function(e) {
+                                    dd[i].onDrag = function (e) {
                                         MyLabels_MouseMove(this.getDragEl())
                                     }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
@@ -585,7 +585,7 @@ $stmt->close();
                                 new Ajax.Request(URL + 'dbsyori.php', {
                                     method: 'get',
                                     onSuccess: getJapanese,
-                                    onFailure: function(req) {
+                                    onFailure: function (req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -615,7 +615,7 @@ $stmt->close();
                                     new Ajax.Request(URL + 'dbsyori.php', {
                                         method: 'get',
                                         onSuccess: getSentence1,
-                                        onFailure: function(req) {
+                                        onFailure: function (req) {
                                             getError(req, "dbsyori.php")
                                         },
                                         parameters: $params
@@ -634,7 +634,7 @@ $stmt->close();
                                             new Ajax.Request(URL + 'dbsyori.php', {
                                                 method: 'get',
                                                 onSuccess: getSentence2,
-                                                onFailure: function(req) {
+                                                onFailure: function (req) {
                                                     getError(req, "dbsyori.php")
                                                 },
                                                 parameters: $params
@@ -676,15 +676,15 @@ $stmt->close();
     //問題の出題関数ここまで-------------------------------------------------------
     //範囲指定をするときのドラッグ開始処理------------------------------
     function Form1_MouseDown() {
-        if (event.y <= 130) {
+        if (event.y <= 150) { // 問題提示欄の境界を少し調整
             d_flag = 0;
-        } else if (event.y <= 215 && event.y > 130) {
+        } else if (event.y <= 260 && event.y > 150) { // 解答欄
             d_flag = 4;
-        } else if (event.y <= 295 && event.y > 215) {
+        } else if (event.y <= 380 && event.y > 260) { // レジスタ1
             d_flag = 1;
-        } else if (event.y <= 375 && event.y > 295) {
+        } else if (event.y <= 460 && event.y > 380) { // レジスタ2
             d_flag = 2;
-        } else if (event.y > 375) {
+        } else if (event.y > 460) { // レジスタ3
             d_flag = 3;
         }
         if (Mouse_Flag == false) {
@@ -840,51 +840,38 @@ $stmt->close();
 
         //レジスタ3をドラッグ中
         if (d_flag == 3) {
-            //もし、範囲の線を超えてしまっていたら？
-            if (ePos.y <= 375) {
-                ePos.y = 375;
-            }
-            //もし、下の範囲を超えてしまっていたら？（バグ対策だぴょん） マウスアップの時になんかバグが起きてるかも！
-            else if (ePos.y >= 480) {
-                ePos.y = 480;
+            if (ePos.y <= 460) { // 375 -> 460 (+85px, 厳密な境界に合わせる)
+                ePos.y = 460;
+            } else if (ePos.y >= 540) { // 480 -> 540 (+60px)
+                ePos.y = 540;
             }
         } else if (d_flag == 0) { //問題提示欄をドラッグ中
-            //もし、範囲の線を超えてしまっていたら？
-            if (ePos.y >= 130) {
-                ePos.y = 130;
+            if (ePos.y >= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
+                ePos.y = 150;
             }
         } else { //その他
             //最終解答欄だった場合
             if (d_flag == 4) {
-                //上限を超えていた場合
-                if (ePos.y <= 130) {
-                    ePos.y = 130;
-                }
-                //下限を超えていた場合
-                else if (ePos.y >= 215) {
-                    ePos.y = 215;
+                if (ePos.y <= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
+                    ePos.y = 150;
+                } else if (ePos.y >= 260) { // 215 -> 260 (新しい下限)
+                    ePos.y = 260;
                 }
             }
             //レジスタ1だった場合
             if (d_flag == 1) {
-                //上限を超えていた場合
-                if (ePos.y <= 215) {
-                    ePos.y = 215;
-                }
-                //下限を超えていた場合
-                else if (ePos.y >= 295) {
-                    ePos.y = 295;
+                if (ePos.y <= 260) { // 215 -> 260
+                    ePos.y = 260;
+                } else if (ePos.y >= 380) { // 295 -> 380
+                    ePos.y = 380;
                 }
             }
             //レジスタ2だった場合
             if (d_flag == 2) {
-                //上限を超えていた場合
-                if (ePos.y <= 295) {
-                    ePos.y = 295;
-                }
-                //下限を超えていた場合
-                else if (ePos.y >= 375) {
-                    ePos.y = 375;
+                if (ePos.y <= 380) { // 295 -> 380
+                    ePos.y = 380;
+                } else if (ePos.y >= 460) { // 375 -> 460
+                    ePos.y = 460;
                 }
             }
         }
@@ -1104,6 +1091,43 @@ $stmt->close();
     }
     //マウスが上に来たらラベルの見た目を変えたり、グループ化やレジスタラベルの対応---------------
     function MyLabels_MouseEnter(e) {
+
+        // ======================= ▼▼▼ ここからが修正箇所です ▼▼▼ =======================
+        var tooltip = document.getElementById('wordOrderTooltip');
+        var hoveredLabel = this; // マウスが乗っているラベル
+
+        // ラベルが解答欄にあるかチェック
+        var isInAnswerArea = Mylabels_ea.some(function (label) {
+            return label.id === hoveredLabel.id;
+        });
+
+        if (isInAnswerArea) {
+            // 解答欄の単語をx座標でソートしたコピーを作成
+            var sortedCopy = Mylabels_ea.slice(0).sort(function (a, b) {
+                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+            });
+
+            // ソート済み配列内でのインデックスを探す
+            var orderIndex = -1;
+            for (var i = 0; i < sortedCopy.length; i++) {
+                if (sortedCopy[i].id === hoveredLabel.id) {
+                    orderIndex = i;
+                    break;
+                }
+            }
+
+            if (orderIndex !== -1) {
+                tooltip.innerHTML = orderIndex + 1; // 順番は1から始まるため +1
+                var hoveredRegion = YAHOO.util.Dom.getRegion(hoveredLabel);
+
+                // ポップアップを単語の左上に表示
+                tooltip.style.left = (hoveredRegion.left) + 'px';
+                tooltip.style.top = (hoveredRegion.top - 20) + 'px'; // 20px上に表示
+                tooltip.style.display = 'block';
+            }
+        }
+        // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
+
         if (MV == true || IsDragging == true) {
             return;
         }
@@ -1128,6 +1152,10 @@ $stmt->close();
     }
 
     function MyLabels_MouseLeave() {
+        // ======================= ▼▼▼ ここに追加 ▼▼▼ =======================
+        // マウスが離れたらポップアップを隠す
+        document.getElementById('wordOrderTooltip').style.display = 'none';
+        // ======================= ▲▲▲ 追加ここまで ▲▲▲ =======================
         if (MV == true || IsDragging == true) {
             return;
         }
@@ -1389,13 +1417,13 @@ $stmt->close();
         //イベントが起こったy座標の判定。それによって単語をどこに落とすか決める。
         if (event.y <= 150) {
             array_flag2 = 0;
-        } else if (event.y <= 240 && event.y > 150) {
+        } else if (event.y <= 260 && event.y > 150) { // 解答欄の判定範囲を広げる (240 -> 260)
             array_flag2 = 4;
-        } else if (event.y <= 320 && event.y > 240) {
+        } else if (event.y <= 380 && event.y > 260) { // レジスタ1の判定範囲を下にずらす
             array_flag2 = 1;
-        } else if (event.y <= 400 && event.y > 320) {
+        } else if (event.y <= 460 && event.y > 380) { // レジスタ2の判定範囲を下にずらす
             array_flag2 = 2;
-        } else if (event.y > 400) {
+        } else if (event.y > 460) { // レジスタ3の判定範囲を下にずらす
             array_flag2 = 3;
         }
 
@@ -1543,13 +1571,13 @@ $stmt->close();
         //挿入線関係。まずy座標でどこに挿入線を引くか判定
         if (event.y <= 150) {
             line_flag = 0;
-        } else if (event.y <= 240 && event.y > 150) {
+        } else if (event.y <= 260 && event.y > 150) {
             line_flag = 4;
-        } else if (event.y <= 320 && event.y > 240) {
+        } else if (event.y <= 380 && event.y > 260) {
             line_flag = 1;
-        } else if (event.y <= 400 && event.y > 320) {
+        } else if (event.y <= 460 && event.y > 380) {
             line_flag = 2;
-        } else if (event.y > 400) {
+        } else if (event.y > 460) {
             line_flag = 3;
         }
         if (line_flag == 0) {
@@ -1734,7 +1762,7 @@ $stmt->close();
             parameters: $params
         });
         //▲マウスデータの取得
-        function getA(req) {}
+        function getA(req) { }
 
         function getE(req) {
             alert("失敗g");
@@ -1743,9 +1771,9 @@ $stmt->close();
         // ▼▼▼ ここから下のブロックを、ごっそり差し替えてください ▼▼▼
 
         // 解答欄(Mylabels_ea)にある単語要素を、x座標の昇順でソート
-        sorted_labels = Mylabels_ea.filter(function(el) {
+        sorted_labels = Mylabels_ea.filter(function (el) {
             return el;
-        }).sort(function(a, b) {
+        }).sort(function (a, b) {
             var x_a = YAHOO.util.Dom.getRegion(a).left; // 各単語の左端のx座標を取得
             var x_b = YAHOO.util.Dom.getRegion(b).left;
             return x_a - x_b; // x座標が小さい順（左から右）に並べ替え
@@ -2185,7 +2213,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getwriteuser_progress,
-                        onFailure: function(req) {
+                        onFailure: function (req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -2764,66 +2792,60 @@ $stmt->close();
 
     <form name="Questions">
         <input type="button" id="ButtonM" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="ButtonM_Click()"
-            style="width:80px;height:30px;position:absolute;left:600px;top:365px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:600px;top:425px;display:none" />
     </form>
 
     <form name="Hearing">
         <input type="button" id="Button5" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="Button5_Click()"
-            style="width:80px;height:30px;position:absolute;left:750px;top:240px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:750px;top:300px;display:none" />
     </form>
 
     <input type="button" id="Button2" value="<?= translate('ques.php_1541行目_次の問題') ?>" onclick="Button2_Click()"
-        style="width:auto;height:33px;position:absolute;left:670px;top:365px;display:none" />
+        style="width:auto;height:33px;position:absolute;left:670px;top:425px;display:none" />
 
     <input type="button" id="ButtonE2" value="<?= translate('ques.php_1546行目_問題へ') ?>" onclick="Button2_Click()"
-        style="width:75px;height:33px;position:absolute;left:768px;top:274px;display:none" />
-
+        style="width:75px;height:33px;position:absolute;left:768px;top:334px;display:none" />
 
     <input type="button" id="Button4" value="<?= translate('ques.php_1551行目_終了') ?>"
         onclick="LineQuestioneForm_Closing()"
-        style="width:75px;height:20px;position:absolute;left:780px;top:365px;background-color:pink;display:none" />
+        style="width:75px;height:20px;position:absolute;left:780px;top:425px;background-color:pink;display:none" />
 
-    <!-- ======================= ▼▼▼ 修正点 2/2 (HTML) ▼▼▼ ======================= -->
-    <!-- ラベルの<font>タグにidを追加 -->
-    <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
-    <!-- ======================= ▲▲▲ 修正点 2/2 (HTML) ▲▲▲ ======================= -->
+    <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7">
+        <?= translate('ques.php_1554行目_日本文') ?>
+    </font>
     <div id="RichTextBox1" style="background-color:#ffa500;position:absolute;
      left:12;top:27;width:731;height:36;border-style:inset">
         <?= translate('ques.php_1556行目_ここに訳文が表示されます') ?>
     </div>
     <div id="RichTextBox2" style="background-color:#a1ffa1;position:absolute;
-     left:12;top:240;width:650;height:67;border-style:inset;display:none"><?= translate('ques.php_1559行目_ここに正解を表示') ?>
+     left:12;top:300px;width:650;height:67;border-style:inset;display:none">
+        <?= translate('ques.php_1559行目_ここに正解を表示') ?>
     </div>
-
     <div id="RichTextBox3" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:272;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
+     left:670;top:332px;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
     </div>
-
     <div id="TextBox1" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:240;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
+     left:670;top:300px;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
     </div>
-
     <div id="Label2" style="position:absolute;
-     left:12;top:530;width:300;height:80;font-size:12;background-color:#ffa500;">
+     left:12;top:590px;width:300;height:80;font-size:12;background-color:#ffa500;">
         <?= translate('ques.php_1568行目_操作説明') ?></br>
-
         <b><?= translate('ques.php_1570行目_単語の移動') ?></b></br>
         <b><?= translate('ques.php_1571行目_グループ化') ?></b></br>
     </div>
-
-    <font id="register" color="red" style="position:absolute;left:12;top:220">
-        <?= translate('ques.php_1573行目_単語退避レジスタ') ?></font>
+    <font id="register" color="red" style="position:absolute;left:12;top:280px">
+        <?= translate('ques.php_1573行目_単語退避レジスタ') ?>
+    </font>
     <div id="register1" style="padding: 10px; border: 2px dotted #333333;position:absolute;
-    left:12;top:240;width:500;height:15;font-size:12;"></div>
-
+    left:12;top:300px;width:500;height:15;font-size:12;"></div>
     <div id="register2" style="padding: 10px; border: 2px dotted #333333;position:absolute;
-    left:12;top:320;width:500;height:15;font-size:12;"></div>
+    left:12;top:380px;width:500;height:15;font-size:12;"></div>
     <div id="register3" style="padding: 10px; border: 2px dotted #333333;position:absolute;
-    left:12;top:400;width:500;height:15;font-size:12;"></div>
+    left:12;top:460px;width:500;height:15;font-size:12;"></div>
 
     <font color="red" style="position:absolute;left:12;top:140"><?= translate('ques.php_1582行目_解答欄') ?></font>
     <div id="answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
-    left:12;top:160;width:800;height:20;font-size:12;"></div>
+    left:12;top:160;width:800;height:80px;font-size:12;"></div>
 
     <div style="position:absolute;left:12;top:70">
         <font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font>
@@ -2831,94 +2853,86 @@ $stmt->close();
     <div id="question" style="padding: 10px; border: 2px solid #333333;position:absolute;
     left:12;top:90;width:800;height:20;font-size:12;"></div>
 
-    <font id="hearing2" color="red" style="position:absolute;left:12;top:220;display:none">
+    <font id="hearing2" color="red" style="position:absolute;left:12;top:280px;display:none">
         <b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b>
     </font>
-
     <div id="hearingT2" style="position:absolute;
-     left:400;top:220;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
-        <?= translate('ques.php_1592行目_かなり迷った') ?></div>
-    <div id="hearingT1" style="position:absolute;
-     left:500;top:220;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
-        <?= translate('ques.php_1594行目_少し迷った') ?></div>
-
-    <div id="hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
-    left:12;top:240;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
+     left:400;top:280px;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
+        <?= translate('ques.php_1592行目_かなり迷った') ?>
     </div>
-
-    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:330;display:none;">
+    <div id="hearingT1" style="position:absolute;
+     left:500;top:280px;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
+        <?= translate('ques.php_1594行目_少し迷った') ?>
+    </div>
+    <div id="hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
+    left:12;top:300px;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
+    </div>
+    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:390px;display:none;">
         <b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b>
     </font>
 
-
     <form name="check" action="">
         <input id="checkbox" type="checkbox" value="全体的にわからなかった"
-            style="width:80px;height:30px;position:absolute;left:5px;top:350px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:5px;top:410px;display:none" />
     </form>
-    <font id="checkbox2" style="position:absolute;left:70;top:360;display:none">
+    <font id="checkbox2" style="position:absolute;left:70;top:420px;display:none">
         <b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b>
     </font>
 
     <div id="myCanvas" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
-
     <div id="myCanvas2" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
 
     <div id="msg" style="position:absolute;
-     left:50;top:300;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
-
+     left:50;top:360px;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
     <div id="Fixmsg" style="position:absolute;
-     left:320;top:530;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
-        <?= translate('ques.php_364行目_情報') ?></div>
+     left:320;top:590px;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
+        <?= translate('ques.php_364行目_情報') ?>
+    </div>
 
     <font id="exercise" color="red" style="position:absolute;
      left:768;top:10;width:80;height:18;font-size:18;color:red;display:none">
         <b><?= translate('ques.php_1622行目_例題') ?></b>
     </font>
-
     <div id="number" style="position:absolute;
      left:768;top:6;width:80;height:18;font-size:18;color:red;display;:none"></div>
 
-
     <form name="Questions">
-
-        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:220px;display:none">
+        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:280px;display:none">
             <?= translate('ques.php_1629行目_解答の迷い度') ?></label>
-        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">
+        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:600px;top:300px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1" selected="selected"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">
+        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:600px;top:300px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2" selected="selected"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">
+        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:600px;top:300px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3" selected="selected"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-
-
-
         <input type="hidden" id="TermText" value="">
     </form>
+
     <script type="text/javascript">
         function disableSelection(target) {
             if (typeof target.onselectstart != "undefined") //IE route
-                target.onselectstart = function() {
+                target.onselectstart = function () {
                     return false
                 }
             else if (typeof target.style.MozUserSelect != "undefined") //Firefox route
                 target.style.MozUserSelect = "none"
             else //All other route (ie: Opera)
-                target.onmousedown = function() {
+                target.onmousedown = function () {
                     return false
                 }
             target.style.cursor = "default"
@@ -2929,6 +2943,9 @@ $stmt->close();
         disableSelection(document.getElementById("myCanvas2"));
         disableSelection(document.getElementById("mybody"));
     </script>
+    <div id="wordOrderTooltip"
+        style="position: absolute; display: none; background-color: black; color: white; padding: 2px 5px; border-radius: 4px; font-size: 12px; z-index: 9999;">
+    </div>
 </body>
 
 </html>
