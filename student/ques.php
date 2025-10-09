@@ -365,6 +365,12 @@ $stmt->close();
         }
         myCheck2(0);
         //===================
+
+        window.addEventListener('unload', function () {
+            // ewrite.phpを呼び出して、サーバー上の一時ファイルをデータベースに書き込む
+            // この通信はページのクローズを妨げず、バックグラウンドで実行される
+            navigator.sendBeacon('ewrite.php');
+        });
     }
     //ロードイベント終了========================================
 
