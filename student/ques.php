@@ -942,7 +942,6 @@ $stmt->close();
         } //forここまで-----------------------------------------
     }
 
-    //------------------------------------------------------------------------------- 
     //ソート関数ここから----------------------------------------------------------
     //ソート関数ここから----------------------------------------------------------
     function MyLabelSort(sender, ex, ey) {
@@ -966,46 +965,98 @@ $stmt->close();
             X_p = DefaultX_r3;
             Y_p = DefaultY_r3;
         }
-        // ▼▼▼ ここからが修正箇所です ▼▼▼
         else if (array_flag2 == 4) { // 解答欄にドロップされた場合
             var droppedLabel = sender;
-            var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
             var answerRegion = YAHOO.util.Dom.getRegion('answer');
-            // 解答欄のY軸中心座標を計算
-            var answerMidY = answerRegion.top + ((answerRegion.bottom - answerRegion.top) / 2);
 
-            // 既存の単語と重なっていないかチェック
+            // ▼▼▼ ここからが新しいアルゴリズムです ▼▼▼
+
+            var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
+            var droppedWidth = droppedRegion.right - droppedRegion.left;
+            var droppedHeight = droppedRegion.bottom - droppedRegion.top;
+
+            var initialX = droppedRegion.left;
+            var initialY = droppedRegion.top;
+            var finalX = initialX;
+            var finalY = initialY;
+
+            // 1. まず、ドロップされた場所で重なりがあるかチェック
+            var initialOverlap = false;
             for (var i = 0; i < Mylabels_ea.length; i++) {
                 var existingLabel = Mylabels_ea[i];
-                if (!existingLabel) continue; // 念のため、undefinedな要素をスキップ
+                if (!existingLabel) continue;
                 var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
 
-                // 矩形が重なっているか（衝突しているか）を判定
-                var isOverlapping = !(droppedRegion.right < existingRegion.left ||
+                if (!(droppedRegion.right < existingRegion.left ||
                     droppedRegion.left > existingRegion.right ||
                     droppedRegion.bottom < existingRegion.top ||
-                    droppedRegion.top > existingRegion.bottom);
-
-                if (isOverlapping) {
-                    // 重なっている単語が解答欄の上半分にあるか下半分にあるか
-                    if (existingRegion.top < answerMidY) {
-                        // 上半分にある場合 ->下に弾く
-                        YAHOO.util.Dom.setY(droppedLabel, existingRegion.bottom + 5); // 5pxのマージン
-                    } else {
-                        // 下半分にある場合 -> 上に弾く
-                        var droppedLabelHeight = droppedRegion.bottom - droppedRegion.top;
-                        YAHOO.util.Dom.setY(droppedLabel, existingRegion.top - droppedLabelHeight - 5);
-                    }
-                    break; // 最初の衝突で処理を終える
+                    droppedRegion.top > existingRegion.bottom)) {
+                    initialOverlap = true;
+                    break;
                 }
             }
 
-            // 配列の更新
+            // 2. 重なりがなければ、何もしない
+            if (!initialOverlap) {
+                // ユーザーが置いた場所をそのまま使う
+            } else {
+                // 3. 重なりがあった場合、ドロップ地点から最も近い空き場所を探す
+                var positionFound = false;
+                var radius = 5; // 探索半径
+                var angle = 0;  // 探索角度
+                var maxRadius = 200; // 最大探索半径
+
+                while (!positionFound && radius < maxRadius) {
+                    // 渦を巻くように探索点を計算
+                    var checkX = initialX + Math.cos(angle) * radius;
+                    var checkY = initialY + Math.sin(angle) * radius;
+
+                    var virtualRegion = {
+                        top: checkY, left: checkX,
+                        bottom: checkY + droppedHeight, right: checkX + droppedWidth
+                    };
+
+                    // 探索点が解答欄の範囲内にあるかチェック
+                    if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
+                        virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
+
+                        var overlaps = false;
+                        for (var i = 0; i < Mylabels_ea.length; i++) {
+                            var existingLabel = Mylabels_ea[i];
+                            if (!existingLabel) continue;
+                            var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
+                            if (!(virtualRegion.right < existingRegion.left ||
+                                virtualRegion.left > existingRegion.right ||
+                                virtualRegion.bottom < existingRegion.top ||
+                                virtualRegion.top > existingRegion.bottom)) {
+                                overlaps = true;
+                                break;
+                            }
+                        }
+
+                        if (!overlaps) {
+                            positionFound = true;
+                            finalX = checkX;
+                            finalY = checkY;
+                        }
+                    }
+
+                    // 角度と半径を更新して次の探索点へ
+                    angle += 0.5; // 角度の増加量（小さいほど密に探索）
+                    if (angle > Math.PI * 2) {
+                        angle = 0;
+                        radius += 5; // 渦を外側へ広げる
+                    }
+                }
+            }
+
+            YAHOO.util.Dom.setXY(droppedLabel, [finalX, finalY]);
+
+            // ▲▲▲ 新しいアルゴリズムはここまで ▲▲▲
+
             mylabelarray3 = Mylabels_ea.slice(0);
-            // グループ化されている場合も考慮
             var labelsToAdd = (MyControls.length > 0) ? MyControls : [droppedLabel];
             for (var k = 0; k < labelsToAdd.length; k++) {
-                // 配列に既に追加されていない場合のみ追加する
                 var exists = mylabelarray3.some(function (label) {
                     return label.id === labelsToAdd[k].id;
                 });
@@ -1016,25 +1067,24 @@ $stmt->close();
             Mylabels_ea = mylabelarray3.slice(0);
             return mylabelarray3;
         }
-        // ▲▲▲ 修正はここまで ▲▲▲
 
+        // ... (関数の残りの部分は変更ありません) ...
         var i;
         var j;
         var k;
 
-        var hLabel; // = document.createElement("div");
+        var hLabel;
         hLabel = sender;
-        var aNum = new Array(); //問題文のラベル番号を記憶
+        var aNum = new Array();
         var aCount = 0;
         for (i = 0; i <= mylabelarray3.length - 1; i++) {
             aNum.push(i);
             aCount++;
         }
-        var iLabel = new Array(); //スワップ用配列
+        var iLabel = new Array();
         var item = MyControls.indexOf(hLabel);
-        //グループ化されているかの判定
+
         if (MyControls.length > 0) {
-            //問題提示欄にドロップされた場合のみ
             if (array_flag2 == 0) {
                 for (j = 0; j < MyControls.length; j++) {
                     for (i = 0; i < Mylabels2.length; i++) {
@@ -1050,7 +1100,6 @@ $stmt->close();
                 return mylabelarray3;
             }
             var X1 = YAHOO.util.Dom.getRegion(MyControls[0]);
-            //どこに挿入するか調べる。
             for (m = 0; m <= mylabelarray3.length; m++) {
                 if (m == mylabelarray3.length) {
                     break;
@@ -1061,11 +1110,9 @@ $stmt->close();
                 }
             }
 
-            //配列に挿入
             for (k = 0; k < MyControls.length; k++) {
                 mylabelarray3.splice(m + k, 0, MyControls[k])
             }
-            //もとの問題文の位置のラベルを整形
             for (i = 0; i < mylabelarray3.length; i++) {
                 if (i == 0) {
                     YAHOO.util.Dom.setX(mylabelarray3[0], X_p);
@@ -1077,7 +1124,6 @@ $stmt->close();
                 }
             }
         } else {
-            //問題提示欄にドロップされた場合のみ
             if (array_flag2 == 0) {
                 for (i = 0; i < Mylabels2.length; i++) {
                     if (Mylabels2[i].id == hLabel.id) {
@@ -1091,7 +1137,6 @@ $stmt->close();
                 return mylabelarray3;
             }
             var X1 = YAHOO.util.Dom.getRegion(hLabel);
-            //どこに挿入するか調べる。グループ化も一緒にやってしまえたらやってしまおう。
             for (j = 0; j <= mylabelarray3.length; j++) {
                 if (j == mylabelarray3.length) {
                     break;
@@ -1101,9 +1146,7 @@ $stmt->close();
                     break;
                 }
             }
-            //配列に挿入
             mylabelarray3.splice(j, 0, hLabel)
-            //もとの問題文の位置のラベルを整形
             for (i = 0; i < mylabelarray3.length; i++) {
                 if (i == 0) {
                     YAHOO.util.Dom.setX(mylabelarray3[0], X_p);
@@ -1125,7 +1168,6 @@ $stmt->close();
             Mylabels_ea = mylabelarray3.slice(0);
         }
         return mylabelarray3;
-
     }
     //マウスが上に来たらラベルの見た目を変えたり、グループ化やレジスタラベルの対応---------------
     function MyLabels_MouseEnter(e) {
