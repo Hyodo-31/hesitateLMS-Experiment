@@ -943,7 +943,6 @@ $stmt->close();
     }
 
     //ソート関数ここから----------------------------------------------------------
-    //ソート関数ここから----------------------------------------------------------
     function MyLabelSort(sender, ex, ey) {
         var mylabelarray3 = new Array();
         var X_p = 0;
@@ -966,96 +965,145 @@ $stmt->close();
             Y_p = DefaultY_r3;
         }
         else if (array_flag2 == 4) { // 解答欄にドロップされた場合
-            var droppedLabel = sender;
             var answerRegion = YAHOO.util.Dom.getRegion('answer');
+            var isGroupMove = MyControls.length > 0;
 
             // ▼▼▼ ここからが新しいアルゴリズムです ▼▼▼
 
-            var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
-            var droppedWidth = droppedRegion.right - droppedRegion.left;
-            var droppedHeight = droppedRegion.bottom - droppedRegion.top;
+            var finalPositions = []; // 各単語の最終位置を格納する配列
 
-            var initialX = droppedRegion.left;
-            var initialY = droppedRegion.top;
-            var finalX = initialX;
-            var finalY = initialY;
+            if (isGroupMove) {
+                // --- グループ移動の処理 ---
+                var groupBounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+                var relativePositions = [];
 
-            // 1. まず、ドロップされた場所で重なりがあるかチェック
-            var initialOverlap = false;
-            for (var i = 0; i < Mylabels_ea.length; i++) {
-                var existingLabel = Mylabels_ea[i];
-                if (!existingLabel) continue;
-                var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
-
-                if (!(droppedRegion.right < existingRegion.left ||
-                    droppedRegion.left > existingRegion.right ||
-                    droppedRegion.bottom < existingRegion.top ||
-                    droppedRegion.top > existingRegion.bottom)) {
-                    initialOverlap = true;
-                    break;
+                // 1. グループ全体の境界と、各単語の相対位置を計算
+                for (var i = 0; i < MyControls.length; i++) {
+                    var region = YAHOO.util.Dom.getRegion(MyControls[i]);
+                    groupBounds.left = Math.min(groupBounds.left, region.left);
+                    groupBounds.top = Math.min(groupBounds.top, region.top);
+                    groupBounds.right = Math.max(groupBounds.right, region.right);
+                    groupBounds.bottom = Math.max(groupBounds.bottom, region.bottom);
                 }
-            }
+                for (var i = 0; i < MyControls.length; i++) {
+                    var region = YAHOO.util.Dom.getRegion(MyControls[i]);
+                    relativePositions.push({
+                        label: MyControls[i],
+                        relX: region.left - groupBounds.left,
+                        relY: region.top - groupBounds.top
+                    });
+                }
 
-            // 2. 重なりがなければ、何もしない
-            if (!initialOverlap) {
-                // ユーザーが置いた場所をそのまま使う
-            } else {
-                // 3. 重なりがあった場合、ドロップ地点から最も近い空き場所を探す
+                var groupWidth = groupBounds.right - groupBounds.left;
+                var groupHeight = groupBounds.bottom - groupBounds.top;
+
+                // 2. グループ全体を一つの塊と見なして、最も近い空き場所を探す
+                var finalX = groupBounds.left;
+                var finalY = groupBounds.top;
+
+                // （単独移動のロジックをグループ用に再利用）
                 var positionFound = false;
-                var radius = 5; // 探索半径
-                var angle = 0;  // 探索角度
-                var maxRadius = 200; // 最大探索半径
+                var radius = 5, angle = 0, maxRadius = 200;
 
                 while (!positionFound && radius < maxRadius) {
-                    // 渦を巻くように探索点を計算
-                    var checkX = initialX + Math.cos(angle) * radius;
-                    var checkY = initialY + Math.sin(angle) * radius;
+                    var checkX = groupBounds.left + Math.cos(angle) * radius;
+                    var checkY = groupBounds.top + Math.sin(angle) * radius;
+                    var virtualRegion = { top: checkY, left: checkX, bottom: checkY + groupHeight, right: checkX + groupWidth };
 
-                    var virtualRegion = {
-                        top: checkY, left: checkX,
-                        bottom: checkY + droppedHeight, right: checkX + droppedWidth
-                    };
-
-                    // 探索点が解答欄の範囲内にあるかチェック
                     if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
                         virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
 
                         var overlaps = false;
                         for (var i = 0; i < Mylabels_ea.length; i++) {
                             var existingLabel = Mylabels_ea[i];
-                            if (!existingLabel) continue;
+                            if (!existingLabel || MyControls.indexOf(existingLabel) !== -1) continue; // 自分自身とは比較しない
                             var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
-                            if (!(virtualRegion.right < existingRegion.left ||
-                                virtualRegion.left > existingRegion.right ||
-                                virtualRegion.bottom < existingRegion.top ||
-                                virtualRegion.top > existingRegion.bottom)) {
+                            if (!(virtualRegion.right < existingRegion.left || virtualRegion.left > existingRegion.right ||
+                                virtualRegion.bottom < existingRegion.top || virtualRegion.top > existingRegion.bottom)) {
                                 overlaps = true;
                                 break;
                             }
                         }
-
                         if (!overlaps) {
                             positionFound = true;
                             finalX = checkX;
                             finalY = checkY;
                         }
                     }
+                    angle += 0.5;
+                    if (angle > Math.PI * 2) { angle = 0; radius += 5; }
+                }
 
-                    // 角度と半径を更新して次の探索点へ
-                    angle += 0.5; // 角度の増加量（小さいほど密に探索）
-                    if (angle > Math.PI * 2) {
-                        angle = 0;
-                        radius += 5; // 渦を外側へ広げる
+                // 3. 全員の最終位置を計算
+                for (var i = 0; i < relativePositions.length; i++) {
+                    finalPositions.push({
+                        label: relativePositions[i].label,
+                        x: finalX + relativePositions[i].relX,
+                        y: finalY + relativePositions[i].relY
+                    });
+                }
+
+            } else {
+                // --- 単独移動の処理 ---
+                var droppedLabel = sender;
+                var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
+                var droppedWidth = droppedRegion.right - droppedRegion.left;
+                var droppedHeight = droppedRegion.bottom - droppedRegion.top;
+                var finalX = droppedRegion.left, finalY = droppedRegion.top;
+
+                var initialOverlap = false;
+                for (var i = 0; i < Mylabels_ea.length; i++) {
+                    if (!Mylabels_ea[i]) continue;
+                    var existingRegion = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
+                    if (!(droppedRegion.right < existingRegion.left || droppedRegion.left > existingRegion.right ||
+                        droppedRegion.bottom < existingRegion.top || droppedRegion.top > existingRegion.bottom)) {
+                        initialOverlap = true;
+                        break;
                     }
                 }
+
+                if (initialOverlap) {
+                    var positionFound = false;
+                    var radius = 5, angle = 0, maxRadius = 200;
+                    while (!positionFound && radius < maxRadius) {
+                        var checkX = droppedRegion.left + Math.cos(angle) * radius;
+                        var checkY = droppedRegion.top + Math.sin(angle) * radius;
+                        var virtualRegion = { top: checkY, left: checkX, bottom: checkY + droppedHeight, right: checkX + droppedWidth };
+
+                        if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
+                            virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
+                            var overlaps = false;
+                            for (var i = 0; i < Mylabels_ea.length; i++) {
+                                if (!Mylabels_ea[i]) continue;
+                                var existingRegion = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
+                                if (!(virtualRegion.right < existingRegion.left || virtualRegion.left > existingRegion.right ||
+                                    virtualRegion.bottom < existingRegion.top || virtualRegion.top > existingRegion.bottom)) {
+                                    overlaps = true;
+                                    break;
+                                }
+                            }
+                            if (!overlaps) {
+                                positionFound = true;
+                                finalX = checkX;
+                                finalY = checkY;
+                            }
+                        }
+                        angle += 0.5;
+                        if (angle > Math.PI * 2) { angle = 0; radius += 5; }
+                    }
+                }
+                finalPositions.push({ label: droppedLabel, x: finalX, y: finalY });
             }
 
-            YAHOO.util.Dom.setXY(droppedLabel, [finalX, finalY]);
+            // 4. 計算した最終位置を、全単語に適用
+            for (var i = 0; i < finalPositions.length; i++) {
+                YAHOO.util.Dom.setXY(finalPositions[i].label, [finalPositions[i].x, finalPositions[i].y]);
+            }
 
             // ▲▲▲ 新しいアルゴリズムはここまで ▲▲▲
 
             mylabelarray3 = Mylabels_ea.slice(0);
-            var labelsToAdd = (MyControls.length > 0) ? MyControls : [droppedLabel];
+            var labelsToAdd = isGroupMove ? MyControls : [sender];
             for (var k = 0; k < labelsToAdd.length; k++) {
                 var exists = mylabelarray3.some(function (label) {
                     return label.id === labelsToAdd[k].id;
