@@ -944,6 +944,7 @@ $stmt->close();
 
     //------------------------------------------------------------------------------- 
     //ソート関数ここから----------------------------------------------------------
+    //ソート関数ここから----------------------------------------------------------
     function MyLabelSort(sender, ex, ey) {
         var mylabelarray3 = new Array();
         var X_p = 0;
@@ -964,22 +965,59 @@ $stmt->close();
             mylabelarray3 = Mylabels_r3.slice(0);
             X_p = DefaultX_r3;
             Y_p = DefaultY_r3;
-        } else if (array_flag2 == 4) {
-            // ▼▼▼ ここからが修正箇所です ▼▼▼
-            // 解答欄の場合は、整列処理を行いません。
-            // 単純に配列にドラッグされた要素を追加するだけにします。
-            mylabelarray3 = Mylabels_ea.slice(0);
-            if (MyControls.length > 0) {
-                for (k = 0; k < MyControls.length; k++) {
-                    mylabelarray3.push(MyControls[k]);
+        }
+        // ▼▼▼ ここからが修正箇所です ▼▼▼
+        else if (array_flag2 == 4) { // 解答欄にドロップされた場合
+            var droppedLabel = sender;
+            var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
+            var answerRegion = YAHOO.util.Dom.getRegion('answer');
+            // 解答欄のY軸中心座標を計算
+            var answerMidY = answerRegion.top + ((answerRegion.bottom - answerRegion.top) / 2);
+
+            // 既存の単語と重なっていないかチェック
+            for (var i = 0; i < Mylabels_ea.length; i++) {
+                var existingLabel = Mylabels_ea[i];
+                if (!existingLabel) continue; // 念のため、undefinedな要素をスキップ
+                var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
+
+                // 矩形が重なっているか（衝突しているか）を判定
+                var isOverlapping = !(droppedRegion.right < existingRegion.left ||
+                    droppedRegion.left > existingRegion.right ||
+                    droppedRegion.bottom < existingRegion.top ||
+                    droppedRegion.top > existingRegion.bottom);
+
+                if (isOverlapping) {
+                    // 重なっている単語が解答欄の上半分にあるか下半分にあるか
+                    if (existingRegion.top < answerMidY) {
+                        // 上半分にある場合 ->下に弾く
+                        YAHOO.util.Dom.setY(droppedLabel, existingRegion.bottom + 5); // 5pxのマージン
+                    } else {
+                        // 下半分にある場合 -> 上に弾く
+                        var droppedLabelHeight = droppedRegion.bottom - droppedRegion.top;
+                        YAHOO.util.Dom.setY(droppedLabel, existingRegion.top - droppedLabelHeight - 5);
+                    }
+                    break; // 最初の衝突で処理を終える
                 }
-            } else {
-                mylabelarray3.push(sender);
+            }
+
+            // 配列の更新
+            mylabelarray3 = Mylabels_ea.slice(0);
+            // グループ化されている場合も考慮
+            var labelsToAdd = (MyControls.length > 0) ? MyControls : [droppedLabel];
+            for (var k = 0; k < labelsToAdd.length; k++) {
+                // 配列に既に追加されていない場合のみ追加する
+                var exists = mylabelarray3.some(function (label) {
+                    return label.id === labelsToAdd[k].id;
+                });
+                if (!exists) {
+                    mylabelarray3.push(labelsToAdd[k]);
+                }
             }
             Mylabels_ea = mylabelarray3.slice(0);
-            return mylabelarray3; // 座標の再計算は行わずに処理を終了
-            // ▲▲▲ 修正はここまで ▲▲▲
+            return mylabelarray3;
         }
+        // ▲▲▲ 修正はここまで ▲▲▲
+
         var i;
         var j;
         var k;
