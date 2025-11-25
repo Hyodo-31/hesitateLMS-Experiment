@@ -684,18 +684,22 @@ $stmt->close();
     function Form1_MouseDown() {
         if (event.y <= 150) { // 問題提示欄の境界を少し調整
             d_flag = 0;
-        } else if (event.y <= 260 && event.y > 150) { // 解答欄
+        } else if (event.y <= 550 && event.y > 150) { // 解答欄
             d_flag = 4;
-        } else if (event.y <= 380 && event.y > 260) { // レジスタ1
+        } else {
+            d_flag = -1; // それ以外（ボタンエリアなど）は無効
+        } /*else if (event.y <= 380 && event.y > 260) { // レジスタ1
             d_flag = 1;
         } else if (event.y <= 460 && event.y > 380) { // レジスタ2
             d_flag = 2;
         } else if (event.y > 460) { // レジスタ3
             d_flag = 3;
-        }
+        }*/
         if (Mouse_Flag == false) {
             return;
         }
+        // d_flagが無効な場合は処理を抜ける（念のため）
+        if (d_flag == -1) return;
         //マウスカーソルを十字に
         document.body.style.cursor = "crosshair";
 
@@ -845,13 +849,13 @@ $stmt->close();
         BPen.clear();
 
         //レジスタ3をドラッグ中
-        if (d_flag == 3) {
+        /*if (d_flag == 3) {
             if (ePos.y <= 460) { // 375 -> 460 (+85px, 厳密な境界に合わせる)
                 ePos.y = 460;
             } else if (ePos.y >= 540) { // 480 -> 540 (+60px)
                 ePos.y = 540;
             }
-        } else if (d_flag == 0) { //問題提示欄をドラッグ中
+        } */if (d_flag == 0) { //問題提示欄をドラッグ中
             if (ePos.y >= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
                 ePos.y = 150;
             }
@@ -860,12 +864,12 @@ $stmt->close();
             if (d_flag == 4) {
                 if (ePos.y <= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
                     ePos.y = 150;
-                } else if (ePos.y >= 260) { // 215 -> 260 (新しい下限)
-                    ePos.y = 260;
+                } else if (ePos.y >= 540) { // 215 -> 540 (新しい下限)
+                    ePos.y = 550;
                 }
             }
             //レジスタ1だった場合
-            if (d_flag == 1) {
+            /*if (d_flag == 1) {
                 if (ePos.y <= 260) { // 215 -> 260
                     ePos.y = 260;
                 } else if (ePos.y >= 380) { // 295 -> 380
@@ -879,7 +883,7 @@ $stmt->close();
                 } else if (ePos.y >= 460) { // 375 -> 460
                     ePos.y = 460;
                 }
-            }
+            }*/
         }
         //消える描画でドラッグ中の四角形を描く
         //左上、右上、左下、右下、の４方向からのドラッグに対応
@@ -957,7 +961,7 @@ $stmt->close();
             mylabelarray3 = Mylabels.slice(0);
             X_p = DefaultX;
             Y_p = DefaultY;
-        } else if (array_flag2 == 1) {
+        } /*else if (array_flag2 == 1) {
             mylabelarray3 = Mylabels_r1.slice(0);
             X_p = DefaultX_r1;
             Y_p = DefaultY_r1;
@@ -969,7 +973,7 @@ $stmt->close();
             mylabelarray3 = Mylabels_r3.slice(0);
             X_p = DefaultX_r3;
             Y_p = DefaultY_r3;
-        }
+        }*/
         else if (array_flag2 == 4) { // 解答欄にドロップされた場合
             var answerRegion = YAHOO.util.Dom.getRegion('answer');
             var isGroupMove = MyControls.length > 0;
@@ -1543,34 +1547,54 @@ $stmt->close();
     function MyLabels_MouseUp(sender) {
         //枠の色リセット
         document.getElementById("question").style.borderColor = "black";
-        document.getElementById("register1").style.borderColor = "black";
-        document.getElementById("register2").style.borderColor = "black";
-        document.getElementById("register3").style.borderColor = "black";
+        //document.getElementById("register1").style.borderColor = "black";
+        //document.getElementById("register2").style.borderColor = "black";
+        //document.getElementById("register3").style.borderColor = "black";
         document.getElementById("answer").style.borderColor = "black";
         var mylabelarray2 = new Array();
         //イベントが起こったy座標の判定。それによって単語をどこに落とすか決める。
-        if (event.y <= 150) {
+        /*if (event.y <= 150) {
             array_flag2 = 0;
-        } else if (event.y <= 260 && event.y > 150) { // 解答欄の判定範囲を広げる (240 -> 260)
+        } else if (event.y <= 560 && event.y > 150) { // 解答欄の判定範囲を広げる (240 -> 260)
             array_flag2 = 4;
-        } else if (event.y <= 380 && event.y > 260) { // レジスタ1の判定範囲を下にずらす
+        } else {
+            array_flag2 = -1; // 範囲外
+        }else if (event.y <= 380 && event.y > 260) { // レジスタ1の判定範囲を下にずらす
             array_flag2 = 1;
         } else if (event.y <= 460 && event.y > 380) { // レジスタ2の判定範囲を下にずらす
             array_flag2 = 2;
         } else if (event.y > 460) { // レジスタ3の判定範囲を下にずらす
             array_flag2 = 3;
+        }*/
+
+        // 解答欄（150px超 ～ 560px以下）にドロップされた場合のみ解答欄扱いにする
+        if (event.y > 150 && event.y <= 550) {
+            array_flag2 = 4;
+        }
+        // それ以外（一番上の問題提示欄、または一番下の無効エリア）は
+        // すべて「問題提示欄(0)」として扱い、強制的に元の場所に戻す
+        else {
+            array_flag2 = 0;
         }
 
         if (array_flag2 == 0) {
             mylabelarray2 = Mylabels.slice(0);
-        } else if (array_flag2 == 1) {
+        } /*else if (array_flag2 == 1) {
             mylabelarray2 = Mylabels_r1.slice(0);
         } else if (array_flag2 == 2) {
             mylabelarray2 = Mylabels_r2.slice(0);
         } else if (array_flag2 == 3) {
             mylabelarray2 = Mylabels_r3.slice(0);
-        } else if (array_flag2 == 4) {
+        } */else if (array_flag2 == 4) {
             mylabelarray2 = Mylabels_ea.slice(0);
+        } else {
+            // 範囲外にドロップされた場合、移動処理を行わずに関数を終了する
+            // (IsDraggingフラグを下げる処理等は必要だが、配置替えはしない)
+            IsDragging = false;
+            // 必要なら元の位置に戻す再描画処理などを呼ぶか、そのまま抜ける
+            // ここではドラッグ状態の解除だけ行い、returnする
+            // ★ドラッグ終了処理（色戻しなど）だけは通すため、ここでのreturnは慎重に。
+            // 下記の「if (IsDragging != true)」以降の処理で、array_flag2が無効なら何もしないように制御されます。
         }
         if (IsDragging != true) {
             return;
@@ -1698,28 +1722,30 @@ $stmt->close();
         var lstart_y = 0;
         //枠の色リセット
         document.getElementById("question").style.borderColor = "black";
-        document.getElementById("register1").style.borderColor = "black";
-        document.getElementById("register2").style.borderColor = "black";
-        document.getElementById("register3").style.borderColor = "black";
+        //document.getElementById("register1").style.borderColor = "black";
+        //document.getElementById("register2").style.borderColor = "black";
+        //document.getElementById("register3").style.borderColor = "black";
         document.getElementById("answer").style.borderColor = "black";
         //挿入線関係。まずy座標でどこに挿入線を引くか判定
         if (event.y <= 150) {
             line_flag = 0;
-        } else if (event.y <= 260 && event.y > 150) {
+        } else if (event.y <= 550 && event.y > 150) {
             line_flag = 4;
-        } else if (event.y <= 380 && event.y > 260) {
+        } /*else if (event.y <= 380 && event.y > 260) {
             line_flag = 1;
         } else if (event.y <= 460 && event.y > 380) {
             line_flag = 2;
         } else if (event.y > 460) {
             line_flag = 3;
+        }*/else {
+            line_flag = -1; // 範囲外
         }
         if (line_flag == 0) {
             line_array = Mylabels.slice(0);
             lstart_x = DefaultX;
             lstart_y = DefaultY;
             document.getElementById("question").style.borderColor = "red";
-        } else if (line_flag == 1) {
+        } /*else if (line_flag == 1) {
             line_array = Mylabels_r1.slice(0);
             lstart_x = DefaultX_r1;
             lstart_y = DefaultY_r1;
@@ -1734,7 +1760,7 @@ $stmt->close();
             lstart_x = DefaultX_r3;
             lstart_y = DefaultY_r3;
             document.getElementById("register3").style.borderColor = "red";
-        } else if (line_flag == 4) {
+        } */else if (line_flag == 4) {
             line_array = Mylabels_ea.slice(0);
             lstart_x = DefaultX_ea;
             lstart_y = DefaultY_ea;
@@ -2926,23 +2952,23 @@ $stmt->close();
 
     <form name="Questions">
         <input type="button" id="ButtonM" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="ButtonM_Click()"
-            style="width:80px;height:30px;position:absolute;left:600px;top:425px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:600px;top:560px;display:none" />
     </form>
 
     <form name="Hearing">
         <input type="button" id="Button5" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="Button5_Click()"
-            style="width:80px;height:30px;position:absolute;left:750px;top:300px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:750px;top:560px;display:none" />
     </form>
 
     <input type="button" id="Button2" value="<?= translate('ques.php_1541行目_次の問題') ?>" onclick="Button2_Click()"
-        style="width:auto;height:33px;position:absolute;left:670px;top:425px;display:none" />
+        style="width:auto;height:33px;position:absolute;left:670px;top:560px;display:none" />
 
     <input type="button" id="ButtonE2" value="<?= translate('ques.php_1546行目_問題へ') ?>" onclick="Button2_Click()"
-        style="width:75px;height:33px;position:absolute;left:768px;top:334px;display:none" />
+        style="width:75px;height:33px;position:absolute;left:768px;top:560px;display:none" />
 
     <input type="button" id="Button4" value="<?= translate('ques.php_1551行目_終了') ?>"
         onclick="LineQuestioneForm_Closing()"
-        style="width:75px;height:20px;position:absolute;left:780px;top:425px;background-color:pink;display:none" />
+        style="width:75px;height:20px;position:absolute;left:780px;top:560px;background-color:pink;display:none" />
 
     <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7">
         <?= translate('ques.php_1554行目_日本文') ?>
@@ -2951,35 +2977,29 @@ $stmt->close();
      left:12;top:27;width:731;height:36;border-style:inset">
         <?= translate('ques.php_1556行目_ここに訳文が表示されます') ?>
     </div>
+
     <div id="RichTextBox2" style="background-color:#a1ffa1;position:absolute;
-     left:12;top:300px;width:650;height:67;border-style:inset;display:none">
+     left:12;top:560px;width:650;height:67;border-style:inset;display:none">
         <?= translate('ques.php_1559行目_ここに正解を表示') ?>
     </div>
     <div id="RichTextBox3" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:332px;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
+     left:670;top:592px;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
     </div>
     <div id="TextBox1" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:300px;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
+     left:670;top:560px;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
     </div>
+
     <div id="Label2" style="position:absolute;
-     left:12;top:590px;width:300;height:80;font-size:12;background-color:#ffa500;">
+     left:12;top:650px;width:300;height:80;font-size:12;background-color:#ffa500;">
         <?= translate('ques.php_1568行目_操作説明') ?></br>
         <b><?= translate('ques.php_1570行目_単語の移動') ?></b></br>
         <b><?= translate('ques.php_1571行目_グループ化') ?></b></br>
     </div>
-    <font id="register" color="red" style="position:absolute;left:12;top:280px">
-        <?= translate('ques.php_1573行目_単語退避レジスタ') ?>
-    </font>
-    <div id="register1" style="padding: 10px; border: 2px dotted #333333;position:absolute;
-    left:12;top:300px;width:500;height:15;font-size:12;"></div>
-    <div id="register2" style="padding: 10px; border: 2px dotted #333333;position:absolute;
-    left:12;top:380px;width:500;height:15;font-size:12;"></div>
-    <div id="register3" style="padding: 10px; border: 2px dotted #333333;position:absolute;
-    left:12;top:460px;width:500;height:15;font-size:12;"></div>
 
     <font color="red" style="position:absolute;left:12;top:140"><?= translate('ques.php_1582行目_解答欄') ?></font>
+
     <div id="answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
-    left:12;top:160;width:800;height:80px;font-size:12;"></div>
+    left:12;top:160;width:800;height:380px;font-size:12;"></div>
 
     <div style="position:absolute;left:12;top:70">
         <font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font>
@@ -2987,39 +3007,40 @@ $stmt->close();
     <div id="question" style="padding: 10px; border: 2px solid #333333;position:absolute;
     left:12;top:90;width:800;height:20;font-size:12;"></div>
 
-    <font id="hearing2" color="red" style="position:absolute;left:12;top:280px;display:none">
+    <font id="hearing2" color="red" style="position:absolute;left:12;top:540px;display:none">
         <b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b>
     </font>
     <div id="hearingT2" style="position:absolute;
-     left:400;top:280px;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
+     left:400;top:540px;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
         <?= translate('ques.php_1592行目_かなり迷った') ?>
     </div>
     <div id="hearingT1" style="position:absolute;
-     left:500;top:280px;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
+     left:500;top:540px;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
         <?= translate('ques.php_1594行目_少し迷った') ?>
     </div>
     <div id="hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
-    left:12;top:300px;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
+    left:12;top:560px;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
     </div>
-    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:390px;display:none;">
+    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:650px;display:none;">
         <b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b>
     </font>
 
     <form name="check" action="">
         <input id="checkbox" type="checkbox" value="全体的にわからなかった"
-            style="width:80px;height:30px;position:absolute;left:5px;top:410px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:5px;top:670px;display:none" />
     </form>
-    <font id="checkbox2" style="position:absolute;left:70;top:420px;display:none">
+    <font id="checkbox2" style="position:absolute;left:70;top:680px;display:none">
         <b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b>
     </font>
 
-    <div id="myCanvas" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
-    <div id="myCanvas2" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
+    <div id="myCanvas" style="position:absolute;top:0;left:0;height:700px;width:800px;z-index:-1"></div>
+    <div id="myCanvas2" style="position:absolute;top:0;left:0;height:700px;width:800px;z-index:-1"></div>
 
     <div id="msg" style="position:absolute;
-     left:50;top:360px;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
+     left:50;top:600px;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
+
     <div id="Fixmsg" style="position:absolute;
-     left:320;top:590px;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
+     left:320;top:650px;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
         <?= translate('ques.php_364行目_情報') ?>
     </div>
 
@@ -3031,23 +3052,23 @@ $stmt->close();
      left:768;top:6;width:80;height:18;font-size:18;color:red;display;:none"></div>
 
     <form name="Questions">
-        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:280px;display:none">
+        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:540px;display:none">
             <?= translate('ques.php_1629行目_解答の迷い度') ?></label>
-        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:600px;top:300px;display:none">
+        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:600px;top:560px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1" selected="selected"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:600px;top:300px;display:none">
+        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:600px;top:560px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2" selected="selected"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:600px;top:300px;display:none">
+        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:600px;top:560px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
@@ -3059,16 +3080,9 @@ $stmt->close();
 
     <script type="text/javascript">
         function disableSelection(target) {
-            if (typeof target.onselectstart != "undefined") //IE route
-                target.onselectstart = function () {
-                    return false
-                }
-            else if (typeof target.style.MozUserSelect != "undefined") //Firefox route
-                target.style.MozUserSelect = "none"
-            else //All other route (ie: Opera)
-                target.onmousedown = function () {
-                    return false
-                }
+            if (typeof target.onselectstart != "undefined") target.onselectstart = function () { return false }
+            else if (typeof target.style.MozUserSelect != "undefined") target.style.MozUserSelect = "none"
+            else target.onmousedown = function () { return false }
             target.style.cursor = "default"
         }
         disableSelection(document.getElementById("question"));

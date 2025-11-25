@@ -17,8 +17,8 @@ $file_name = sys_get_temp_dir() . "/tem" . $MemberID . ".tmp";
 // 追加: 「今回INSERTした (UID,WID,attempt)」 を覚えておく配列
 $newAttempts = [];
 
-if (is_file($file_name)) { 
-    $text = fopen($file_name, 'r'); 
+if (is_file($file_name)) {
+    $text = fopen($file_name, 'r');
     if (!$text) {
         echo translate('ewrite.php_17行目_ファイルを開けませんでした');
         exit;
@@ -66,8 +66,8 @@ if (is_file($file_name)) {
     // ループ終了後
     if (!empty($newAttempts)) {
         foreach ($newAttempts as $info) {
-            $uid     = $info['uid'];
-            $wid     = $info['wid'];
+            $uid = $info['uid'];
+            $wid = $info['wid'];
             $attempt = $info['attempt'];
 
             // Pythonスクリプトのパス設定
@@ -75,11 +75,11 @@ if (is_file($file_name)) {
             $scriptPath = 'generateParametersForQuestion.py'; // 実際のスクリプトのパスに置き換えてください
 
             // コマンドの組み立て
-            $cmd = escapeshellcmd($pythonPath) . ' ' . escapeshellarg($scriptPath) . 
-                   ' --uid ' . escapeshellarg($uid) . 
-                   ' --wid ' . escapeshellarg($wid) . 
-                   ' --attempt ' . escapeshellarg($attempt) . ' 2>&1';
-            
+            $cmd = escapeshellcmd($pythonPath) . ' ' . escapeshellarg($scriptPath) .
+                ' --uid ' . escapeshellarg($uid) .
+                ' --wid ' . escapeshellarg($wid) .
+                ' --attempt ' . escapeshellarg($attempt) . ' 2>&1';
+
             // Pythonスクリプトの実行
             $output = shell_exec($cmd);
 
@@ -99,7 +99,7 @@ if (is_file($file_name)) {
     }
 
     echo translate('ewrite.php_83行目_正常にデータを書き終えました');
-    
+
     // 一時ファイルの削除
     if (!unlink($file_name)) {
         echo translate('ewrite.php_87行目_一時ファイルの削除に失敗しました');
