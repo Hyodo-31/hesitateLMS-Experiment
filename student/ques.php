@@ -293,7 +293,7 @@ $stmt->close();
     //ロードイベント
     //body がloadされた時点で実行される。
     function ques_Load() {
-        window.resizeTo(900, 860);
+        window.resizeTo(885, 860);
         new Ajax.Request(URL + 'swrite.php', //こんにちはOOさん出力
             {
                 method: 'get',
@@ -3000,7 +3000,8 @@ $stmt->close();
     <font color="red" style="position:absolute;left:12;top:140"><?= translate('ques.php_1582行目_解答欄') ?></font>
 
     <div id="answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
-    left:12;top:160;width:800;height:380px;font-size:12;"></div>
+    left:12;top:160;width:800;height:380px;font-size:12;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.1) 50%);"></div>
 
     <div style="position:absolute;left:12;top:70">
         <font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font>
