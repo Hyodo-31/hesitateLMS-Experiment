@@ -293,6 +293,7 @@ $stmt->close();
     //ロードイベント
     //body がloadされた時点で実行される。
     function ques_Load() {
+        window.resizeTo(900, 860);
         new Ajax.Request(URL + 'swrite.php', //こんにちはOOさん出力
             {
                 method: 'get',
@@ -2952,23 +2953,23 @@ $stmt->close();
 
     <form name="Questions">
         <input type="button" id="ButtonM" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="ButtonM_Click()"
-            style="width:80px;height:30px;position:absolute;left:600px;top:560px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:768px;top:750px;display:none" />
     </form>
 
     <form name="Hearing">
         <input type="button" id="Button5" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="Button5_Click()"
-            style="width:80px;height:30px;position:absolute;left:750px;top:560px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:768px;top:600px;display:none" />
     </form>
 
     <input type="button" id="Button2" value="<?= translate('ques.php_1541行目_次の問題') ?>" onclick="Button2_Click()"
-        style="width:auto;height:33px;position:absolute;left:670px;top:560px;display:none" />
+        style="width:auto;height:33px;position:absolute;left:670px;top:700px;display:none" />
 
     <input type="button" id="ButtonE2" value="<?= translate('ques.php_1546行目_問題へ') ?>" onclick="Button2_Click()"
-        style="width:75px;height:33px;position:absolute;left:768px;top:560px;display:none" />
+        style="width:75px;height:33px;position:absolute;left:768px;top:600px;display:none" />
 
     <input type="button" id="Button4" value="<?= translate('ques.php_1551行目_終了') ?>"
         onclick="LineQuestioneForm_Closing()"
-        style="width:75px;height:20px;position:absolute;left:780px;top:560px;background-color:pink;display:none" />
+        style="width:75px;height:20px;position:absolute;left:780px;top:700px;background-color:pink;display:none" />
 
     <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7">
         <?= translate('ques.php_1554行目_日本文') ?>
@@ -2979,14 +2980,14 @@ $stmt->close();
     </div>
 
     <div id="RichTextBox2" style="background-color:#a1ffa1;position:absolute;
-     left:12;top:560px;width:650;height:67;border-style:inset;display:none">
+     left:12;top:570px;width:650;height:67;border-style:inset;display:none">
         <?= translate('ques.php_1559行目_ここに正解を表示') ?>
     </div>
     <div id="RichTextBox3" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:592px;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
+     left:670;top:602px;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
     </div>
     <div id="TextBox1" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:560px;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
+     left:670;top:570px;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
     </div>
 
     <div id="Label2" style="position:absolute;
@@ -3007,37 +3008,38 @@ $stmt->close();
     <div id="question" style="padding: 10px; border: 2px solid #333333;position:absolute;
     left:12;top:90;width:800;height:20;font-size:12;"></div>
 
-    <font id="hearing2" color="red" style="position:absolute;left:12;top:540px;display:none">
+    <font id="hearing2" color="red" style="position:absolute;left:12;top:570px;display:none">
         <b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b>
     </font>
     <div id="hearingT2" style="position:absolute;
-     left:400;top:540px;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
+     left:400;top:570px;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
         <?= translate('ques.php_1592行目_かなり迷った') ?>
     </div>
     <div id="hearingT1" style="position:absolute;
-     left:500;top:540px;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
+     left:500;top:570px;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
         <?= translate('ques.php_1594行目_少し迷った') ?>
     </div>
     <div id="hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
-    left:12;top:560px;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
+    left:12;top:600px;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
     </div>
-    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:650px;display:none;">
+
+    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:700px;display:none;">
         <b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b>
     </font>
 
     <form name="check" action="">
         <input id="checkbox" type="checkbox" value="全体的にわからなかった"
-            style="width:80px;height:30px;position:absolute;left:5px;top:670px;display:none" />
+            style="width:80px;height:30px;position:absolute;left:5px;top:720px;display:none" />
     </form>
-    <font id="checkbox2" style="position:absolute;left:70;top:680px;display:none">
+    <font id="checkbox2" style="position:absolute;left:70;top:730px;display:none">
         <b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b>
     </font>
 
-    <div id="myCanvas" style="position:absolute;top:0;left:0;height:700px;width:800px;z-index:-1"></div>
-    <div id="myCanvas2" style="position:absolute;top:0;left:0;height:700px;width:800px;z-index:-1"></div>
+    <div id="myCanvas" style="position:absolute;top:0;left:0;height:900px;width:800px;z-index:-1"></div>
+    <div id="myCanvas2" style="position:absolute;top:0;left:0;height:900px;width:800px;z-index:-1"></div>
 
     <div id="msg" style="position:absolute;
-     left:50;top:600px;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
+     left:50;top:640px;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
 
     <div id="Fixmsg" style="position:absolute;
      left:320;top:650px;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
@@ -3052,23 +3054,23 @@ $stmt->close();
      left:768;top:6;width:80;height:18;font-size:18;color:red;display;:none"></div>
 
     <form name="Questions">
-        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:540px;display:none">
+        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:500px;top:570px;display:none">
             <?= translate('ques.php_1629行目_解答の迷い度') ?></label>
-        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:600px;top:560px;display:none">
+        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:500px;top:600px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1" selected="selected"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:600px;top:560px;display:none">
+        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:500px;top:600px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2" selected="selected"><?= translate('ques.php_1635行目_少し迷った') ?></option>
             <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
             <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
         </select>
-        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:600px;top:560px;display:none">
+        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:500px;top:600px;display:none">
             <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
             <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
             <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
