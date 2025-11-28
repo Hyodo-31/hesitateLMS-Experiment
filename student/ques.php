@@ -267,8 +267,8 @@ $stmt->close();
 
 
     //ランダムに配列を並び替えるソース
-    Array.prototype.random = function () {
-        this.sort(function (a, b) {
+    Array.prototype.random = function() {
+        this.sort(function(a, b) {
             var i = Math.ceil(Math.random() * 100) % 2;
             if (i == 0) {
                 return -1;
@@ -280,7 +280,7 @@ $stmt->close();
     //-------------------------------------------------------------
     //配列に指定した値があるかチェック
     if (!Array.prototype.contains) {
-        Array.prototype.contains = function (value) {
+        Array.prototype.contains = function(value) {
             for (var i in this) {
                 if (this.hasOwnProperty(i) && this[i] === value) {
                     return true;
@@ -291,7 +291,10 @@ $stmt->close();
     }
 
     function createGroupObject(members) {
-        var minL = Infinity, maxR = -Infinity, minT = Infinity, maxB = -Infinity;
+        var minL = Infinity,
+            maxR = -Infinity,
+            minT = Infinity,
+            maxB = -Infinity;
         for (var i = 0; i < members.length; i++) {
             var r = YAHOO.util.Dom.getRegion(members[i]);
             minL = Math.min(minL, r.left);
@@ -389,12 +392,12 @@ $stmt->close();
         new Ajax.Request(URL + 'linemouse.php', {
             method: 'get',
             onSuccess: getm,
-            onFailure: function (req) {
+            onFailure: function(req) {
                 getError(req, "linemouse.php")
             }
         });
 
-        function getm(res) { }
+        function getm(res) {}
         //======================================================
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
@@ -403,7 +406,7 @@ $stmt->close();
         new Ajax.Request(URL + 'load.php', {
             method: 'get',
             onSuccess: getOID,
-            onFailure: function (req) {
+            onFailure: function(req) {
                 getError(req, "load.php")
             },
             parameters: $params
@@ -423,7 +426,7 @@ $stmt->close();
         myCheck2(0);
         //===================
 
-        window.addEventListener('unload', function () {
+        window.addEventListener('unload', function() {
             // ewrite.phpを呼び出して、サーバー上の一時ファイルをデータベースに書き込む
             // この通信はページのクローズを妨げず、バックグラウンドで実行される
             navigator.sendBeacon('ewrite.php');
@@ -469,7 +472,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "getattempt.php")
                         },
                         parameters: $params_for_attempt
@@ -487,7 +490,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getResponse,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -508,7 +511,7 @@ $stmt->close();
                         {
                             method: 'get',
                             onSuccess: getStart,
-                            onFailure: function (req) {
+                            onFailure: function(req) {
                                 getError(req, "dbsyori.php")
                             },
                             parameters: $params
@@ -524,7 +527,7 @@ $stmt->close();
                             {
                                 method: 'get',
                                 onSuccess: getDivide,
-                                onFailure: function (req) {
+                                onFailure: function(req) {
                                     getError(req, "dbsyori.php")
                                 },
                                 parameters: $params
@@ -540,7 +543,7 @@ $stmt->close();
                                 {
                                     method: 'get',
                                     onSuccess: getFix,
-                                    onFailure: function (req) {
+                                    onFailure: function(req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -617,13 +620,13 @@ $stmt->close();
 
                                     el = YAHOO.util.Dom.getRegion(p);
                                     //イベントハンドラの追加
-                                    dd[i].onMouseDown = function (e) {
+                                    dd[i].onMouseDown = function(e) {
                                         MyLabels_MouseDown(this.getDragEl())
                                     }
-                                    dd[i].onMouseUp = function (e) {
+                                    dd[i].onMouseUp = function(e) {
                                         MyLabels_MouseUp(this.getDragEl())
                                     }
-                                    dd[i].onDrag = function (e) {
+                                    dd[i].onDrag = function(e) {
                                         MyLabels_MouseMove(this.getDragEl())
                                     }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
@@ -648,7 +651,7 @@ $stmt->close();
                                 new Ajax.Request(URL + 'dbsyori.php', {
                                     method: 'get',
                                     onSuccess: getJapanese,
-                                    onFailure: function (req) {
+                                    onFailure: function(req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -678,7 +681,7 @@ $stmt->close();
                                     new Ajax.Request(URL + 'dbsyori.php', {
                                         method: 'get',
                                         onSuccess: getSentence1,
-                                        onFailure: function (req) {
+                                        onFailure: function(req) {
                                             getError(req, "dbsyori.php")
                                         },
                                         parameters: $params
@@ -697,7 +700,7 @@ $stmt->close();
                                             new Ajax.Request(URL + 'dbsyori.php', {
                                                 method: 'get',
                                                 onSuccess: getSentence2,
-                                                onFailure: function (req) {
+                                                onFailure: function(req) {
                                                     getError(req, "dbsyori.php")
                                                 },
                                                 parameters: $params
@@ -745,13 +748,14 @@ $stmt->close();
             d_flag = 4;
         } else {
             d_flag = -1; // それ以外（ボタンエリアなど）は無効
-        } /*else if (event.y <= 380 && event.y > 260) { // レジスタ1
-            d_flag = 1;
-        } else if (event.y <= 460 && event.y > 380) { // レジスタ2
-            d_flag = 2;
-        } else if (event.y > 460) { // レジスタ3
-            d_flag = 3;
-        }*/
+        }
+        /*else if (event.y <= 380 && event.y > 260) { // レジスタ1
+                   d_flag = 1;
+               } else if (event.y <= 460 && event.y > 380) { // レジスタ2
+                   d_flag = 2;
+               } else if (event.y > 460) { // レジスタ3
+                   d_flag = 3;
+               }*/
         if (Mouse_Flag == false) {
             return;
         }
@@ -912,7 +916,8 @@ $stmt->close();
             } else if (ePos.y >= 540) { // 480 -> 540 (+60px)
                 ePos.y = 540;
             }
-        } */if (d_flag == 0) { //問題提示欄をドラッグ中
+        } */
+        if (d_flag == 0) { //問題提示欄をドラッグ中
             if (ePos.y >= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
                 ePos.y = 150;
             }
@@ -1018,65 +1023,56 @@ $stmt->close();
             mylabelarray3 = Mylabels.slice(0);
             X_p = DefaultX;
             Y_p = DefaultY;
-        } /*else if (array_flag2 == 1) {
-            mylabelarray3 = Mylabels_r1.slice(0);
-            X_p = DefaultX_r1;
-            Y_p = DefaultY_r1;
-        } else if (array_flag2 == 2) {
-            mylabelarray3 = Mylabels_r2.slice(0);
-            X_p = DefaultX_r2;
-            Y_p = DefaultY_r2;
-        } else if (array_flag2 == 3) {
-            mylabelarray3 = Mylabels_r3.slice(0);
-            X_p = DefaultX_r3;
-            Y_p = DefaultY_r3;
-        }*/
+        }
+        /*else if (array_flag2 == 1) {
+                   mylabelarray3 = Mylabels_r1.slice(0);
+                   X_p = DefaultX_r1;
+                   Y_p = DefaultY_r1;
+               } else if (array_flag2 == 2) {
+                   mylabelarray3 = Mylabels_r2.slice(0);
+                   X_p = DefaultX_r2;
+                   Y_p = DefaultY_r2;
+               } else if (array_flag2 == 3) {
+                   mylabelarray3 = Mylabels_r3.slice(0);
+                   X_p = DefaultX_r3;
+                   Y_p = DefaultY_r3;
+               }*/
         else if (array_flag2 == 4) { // 解答欄
             var isGroupMove = MyControls.length > 0;
-            var finalPositions = [];
 
-            // 1. ドラッグ中の情報の取得
-            var dragL = Infinity, dragR = -Infinity, dragT = Infinity, dragB = -Infinity;
-            var dragRegionFirst = YAHOO.util.Dom.getRegion(isGroupMove ? MyControls[0] : sender);
+            // 1. ドラッグ情報取得
+            var dragFirst = (isGroupMove) ? MyControls[0] : sender;
+            var dragRegionFirst = YAHOO.util.Dom.getRegion(dragFirst);
+            var dragWidth = 0;
+            var minL = dragRegionFirst.left;
 
             if (isGroupMove) {
+                var maxR = -Infinity;
+                minL = Infinity;
                 for (var i = 0; i < MyControls.length; i++) {
                     var r = YAHOO.util.Dom.getRegion(MyControls[i]);
-                    dragL = Math.min(dragL, r.left);
-                    dragR = Math.max(dragR, r.right);
-                    dragT = Math.min(dragT, r.top);
-                    dragB = Math.max(dragB, r.bottom);
+                    minL = Math.min(minL, r.left);
+                    maxR = Math.max(maxR, r.right);
                 }
+                dragWidth = maxR - minL;
             } else {
-                dragL = dragRegionFirst.left; dragR = dragRegionFirst.right;
-                dragT = dragRegionFirst.top; dragB = dragRegionFirst.bottom;
+                dragWidth = dragRegionFirst.right - dragRegionFirst.left;
             }
-            var dragWidth = dragR - dragL;
-            var dragCY = dragT + (dragB - dragT) / 2;
-            var dragCX = dragL + dragWidth / 2;
+            var dragCX = minL + (dragWidth / 2);
+            var dragCY = dragRegionFirst.top + (dragRegionFirst.bottom - dragRegionFirst.top) / 2;
 
-            // 2. 吸着ターゲットの特定
-            var groups = getAnswerGroups();
+            // 2. ターゲット探索
+            var groups = getAnswerGroups(25, false); // ドラッグ中は除外して探す
             var targetGroup = null;
             var thresholdY = 20;
-            var marginX = 50; // 反応範囲 (広め)
+            var marginX = 50;
             var minDiff = Infinity;
 
             for (var i = 0; i < groups.length; i++) {
                 var group = groups[i];
                 var groupCY = group.top + (group.bottom - group.top) / 2;
                 var groupCX = group.left + (group.right - group.left) / 2;
-
-                var isSelf = false;
-                for (var m = 0; m < group.members.length; m++) {
-                    if (group.members[m].id == sender.id) isSelf = true;
-                    if (isGroupMove && MyControls.indexOf(group.members[m]) != -1) isSelf = true;
-                }
-                if (isSelf) continue;
-
-                // Y軸判定
                 if (Math.abs(dragCY - groupCY) < thresholdY) {
-                    // X軸判定 (広範囲でヒットさせる)
                     if (dragCX > group.left - marginX && dragCX < group.right + marginX) {
                         var diff = Math.abs(dragCX - groupCX);
                         if (diff < minDiff) {
@@ -1089,68 +1085,45 @@ $stmt->close();
 
             // 3. 座標決定
             var finalTop = dragRegionFirst.top;
-            var finalLeft = dragL;
-            var padding = 17;
+            var finalLeft = minL;
 
             if (targetGroup) {
-                // === 吸着モード ===
+                // ★ねじ込み処理: 計算した縦線の位置に左端を合わせる
+                var bestPos = getInsertPosition(targetGroup, dragCX);
                 finalTop = targetGroup.top;
-
-                // ▼▼▼ 修正: 端同士を比較してサイドを決定 ▼▼▼
-                // 右吸着の距離: [ドラッグ]→ ←[ターゲット]
-                var distRightToLeft = Math.abs(dragR - targetGroup.left);
-
-                // 左吸着の距離: [ターゲット]→ ←[ドラッグ]
-                var distLeftToRight = Math.abs(dragL - targetGroup.right);
-
-                // 基本は距離が近い方を採用するが、
-                // ドラッグの中心がグループの中心より左なら左吸着、右なら右吸着を優先させる判定も加味
-
-                if (distRightToLeft < distLeftToRight) {
-                    // 左側に配置 (ターゲットの左端につく)
-                    finalLeft = targetGroup.left - dragWidth - padding;
-                } else {
-                    // 右側に配置 (ターゲットの右端につく)
-                    finalLeft = targetGroup.right + padding;
-                }
-                // ▲▲▲ 修正ここまで ▲▲▲
-
-            } else {
-                // === 自由配置モード ===
+                // 中心を縦線に合わせるよう調整
+                finalLeft = bestPos.x - (dragWidth / 2);
             }
 
-            // 4. 座標の適用
+            // 4. 座標の一時適用 (DOMに反映させることで次の整列計算に乗せる)
             if (isGroupMove) {
-                var diffX = finalLeft - dragL;
-                var diffY = finalTop - dragT;
+                var diffX = finalLeft - minL;
+                var diffY = finalTop - dragRegionFirst.top;
                 for (var i = 0; i < MyControls.length; i++) {
                     var r = YAHOO.util.Dom.getRegion(MyControls[i]);
-                    finalPositions.push({
-                        label: MyControls[i],
-                        x: r.left + diffX,
-                        y: r.top + diffY
-                    });
+                    YAHOO.util.Dom.setX(MyControls[i], r.left + diffX);
+                    YAHOO.util.Dom.setY(MyControls[i], r.top + diffY);
+                    YAHOO.util.Dom.setStyle(MyControls[i], "border", "none");
                 }
             } else {
-                finalPositions.push({ label: sender, x: finalLeft, y: finalTop });
+                YAHOO.util.Dom.setX(sender, finalLeft);
+                YAHOO.util.Dom.setY(sender, finalTop);
+                YAHOO.util.Dom.setStyle(sender, "border", "none");
             }
 
-            for (var i = 0; i < finalPositions.length; i++) {
-                YAHOO.util.Dom.setXY(finalPositions[i].label, [finalPositions[i].x, finalPositions[i].y]);
-                YAHOO.util.Dom.setStyle(finalPositions[i].label, "border", "none");
-            }
-
-            // 配列更新
-            mylabelarray3 = Mylabels_ea.slice(0);
+            // 5. 配列更新
+            var mylabelarray3 = Mylabels_ea.slice(0);
             var labelsToAdd = isGroupMove ? MyControls : [sender];
             for (var k = 0; k < labelsToAdd.length; k++) {
-                var exists = mylabelarray3.some(function (label) { return label.id === labelsToAdd[k].id; });
+                var exists = mylabelarray3.some(function(label) {
+                    return label.id === labelsToAdd[k].id;
+                });
                 if (!exists) mylabelarray3.push(labelsToAdd[k]);
             }
             Mylabels_ea = mylabelarray3.slice(0);
 
-            // 線再描画
-            draw_register_lines(null);
+            // 6. ★全体整列 (ここでincludeDragging=trueで計算されるため、即座に綺麗になる)
+            rearrangeAllGroups();
 
             return mylabelarray3;
         }
@@ -1264,13 +1237,13 @@ $stmt->close();
         var hoveredLabel = this; // マウスが乗っているラベル
 
         // ラベルが解答欄にあるかチェック
-        var isInAnswerArea = Mylabels_ea.some(function (label) {
+        var isInAnswerArea = Mylabels_ea.some(function(label) {
             return label.id === hoveredLabel.id;
         });
 
         if (isInAnswerArea) {
             // 解答欄の単語をx座標でソートしたコピーを作成
-            var sortedCopy = Mylabels_ea.slice(0).sort(function (a, b) {
+            var sortedCopy = Mylabels_ea.slice(0).sort(function(a, b) {
                 return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
             });
 
@@ -1608,13 +1581,15 @@ $stmt->close();
 
         if (array_flag2 == 0) {
             mylabelarray2 = Mylabels.slice(0);
-        } /*else if (array_flag2 == 1) {
-            mylabelarray2 = Mylabels_r1.slice(0);
-        } else if (array_flag2 == 2) {
-            mylabelarray2 = Mylabels_r2.slice(0);
-        } else if (array_flag2 == 3) {
-            mylabelarray2 = Mylabels_r3.slice(0);
-        } */else if (array_flag2 == 4) {
+        }
+        /*else if (array_flag2 == 1) {
+                   mylabelarray2 = Mylabels_r1.slice(0);
+               } else if (array_flag2 == 2) {
+                   mylabelarray2 = Mylabels_r2.slice(0);
+               } else if (array_flag2 == 3) {
+                   mylabelarray2 = Mylabels_r3.slice(0);
+               } */
+        else if (array_flag2 == 4) {
             mylabelarray2 = Mylabels_ea.slice(0);
         } else {
             // 範囲外にドロップされた場合、移動処理を行わずに関数を終了する
@@ -1702,19 +1677,20 @@ $stmt->close();
     }
 
     // 解答欄にある単語をY座標でグルーピングする関数
-    function getAnswerGroups() {
-        var groups = [];
-        var thresholdY = 5; // 同じ行とみなすY座標の誤差
-        var thresholdX = 20; // ★これ以上離れていたら別のグループとする（X軸の隙間）
+    function getAnswerGroups(thresholdX, includeDragging) {
+        if (thresholdX === undefined) thresholdX = 25;
+        if (includeDragging === undefined) includeDragging = false;
 
-        // 1. まずはY座標だけで大まかなクラスタ（行）を作る
+        var groups = [];
+        var thresholdY = 15;
         var yClusters = [];
 
+        // 1. Y座標によるクラスタリング
         for (var i = 0; i < Mylabels_ea.length; i++) {
             var label = Mylabels_ea[i];
 
-            // ドラッグ中の単語(自分自身)はグループ計算に含めない
-            if (IsDragging) {
+            // フラグがfalseなら、ドラッグ中の単語を除外する
+            if (!includeDragging && IsDragging) {
                 if (DragL && label.id == DragL.id) continue;
                 if (MyControls.length > 0 && MyControls.indexOf(label) != -1) continue;
             }
@@ -1723,14 +1699,12 @@ $stmt->close();
             var added = false;
 
             for (var j = 0; j < yClusters.length; j++) {
-                // Y座標が近いか？
                 if (Math.abs(yClusters[j].baseY - region.top) < thresholdY) {
                     yClusters[j].members.push(label);
                     added = true;
                     break;
                 }
             }
-
             if (!added) {
                 yClusters.push({
                     baseY: region.top,
@@ -1739,16 +1713,13 @@ $stmt->close();
             }
         }
 
-        // 2. 各クラスタ内で、X座標順に並べ替え、距離が離れているものを分割する
+        // 2. X座標距離による分割
         for (var k = 0; k < yClusters.length; k++) {
             var cluster = yClusters[k];
-
-            // X座標(左端)でソート
-            cluster.members.sort(function (a, b) {
+            cluster.members.sort(function(a, b) {
                 return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
             });
 
-            // 最初のメンバーでサブグループ開始
             var currentSubGroup = [cluster.members[0]];
 
             for (var i = 1; i < cluster.members.length; i++) {
@@ -1757,23 +1728,118 @@ $stmt->close();
                 var prevRegion = YAHOO.util.Dom.getRegion(prev);
                 var currRegion = YAHOO.util.Dom.getRegion(curr);
 
-                // 「今の単語の左端」 - 「前の単語の右端」 が 閾値より大きいか？
                 if (currRegion.left - prevRegion.right > thresholdX) {
-                    // 離れているので、今のサブグループを確定させて、新しいサブグループを作る
                     groups.push(createGroupObject(currentSubGroup));
                     currentSubGroup = [curr];
                 } else {
-                    // 近いので同じグループに追加
                     currentSubGroup.push(curr);
                 }
             }
-            // 最後のサブグループを登録
             if (currentSubGroup.length > 0) {
                 groups.push(createGroupObject(currentSubGroup));
             }
         }
-
         return groups;
+    }
+
+    function getInsertPosition(group, checkX) {
+        // メンバーをX順にソート
+        var members = group.members.slice(0).sort(function(a, b) {
+            return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+        });
+
+        // 候補地点のリストを作成 (各単語の隙間 + 両端)
+        var candidates = [];
+
+        // 1. 左端
+        var firstReg = YAHOO.util.Dom.getRegion(members[0]);
+        candidates.push({
+            x: firstReg.left,
+            index: 0
+        });
+
+        // 2. 単語の間
+        for (var i = 0; i < members.length - 1; i++) {
+            var curr = members[i];
+            var next = members[i + 1];
+            var currReg = YAHOO.util.Dom.getRegion(curr);
+            var nextReg = YAHOO.util.Dom.getRegion(next);
+            // 隙間の中央
+            var midX = currReg.right + (nextReg.left - currReg.right) / 2;
+            candidates.push({
+                x: midX,
+                index: i + 1
+            });
+        }
+
+        // 3. 右端
+        var lastReg = YAHOO.util.Dom.getRegion(members[members.length - 1]);
+        candidates.push({
+            x: lastReg.right,
+            index: members.length
+        });
+
+        // 最も近い候補を探す
+        var best = candidates[0];
+        var minDiff = Math.abs(checkX - best.x);
+
+        for (var i = 1; i < candidates.length; i++) {
+            var diff = Math.abs(checkX - candidates[i].x);
+            if (diff < minDiff) {
+                minDiff = diff;
+                best = candidates[i];
+            }
+        }
+        return best; // {x: 挿入すべきX座標, index: 挿入順序}
+    }
+
+    // 【修正関数2】全グループを整列させる
+    function rearrangeAllGroups() {
+        // ★重要: 隙間許容値を大きく(150px)し、ドラッグ中だった単語も含めて(true)グループ化する
+        // これにより、単語を抜いた後の穴(80px程度)も「同じグループ」とみなされ、自動的に詰められる
+        var groups = getAnswerGroups(150, true);
+
+        var padding = 17;
+
+        for (var i = 0; i < groups.length; i++) {
+            var group = groups[i];
+            var members = group.members;
+
+            // X座標でソート
+            members.sort(function(a, b) {
+                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+            });
+
+            // 中心基準の計算
+            var currentMinL = group.left;
+            var currentMaxR = group.right;
+            var centerCX = currentMinL + (currentMaxR - currentMinL) / 2;
+
+            var totalWidth = 0;
+            for (var j = 0; j < members.length; j++) {
+                var r = YAHOO.util.Dom.getRegion(members[j]);
+                var w = r.right - r.left;
+                totalWidth += w;
+            }
+            totalWidth += padding * (members.length - 1);
+
+            var newStartLeft = centerCX - (totalWidth / 2);
+            var currentX = newStartLeft;
+            var currentY = group.top;
+
+            for (var j = 0; j < members.length; j++) {
+                var elm = members[j];
+                var r = YAHOO.util.Dom.getRegion(elm);
+                var w = r.right - r.left;
+
+                YAHOO.util.Dom.setX(elm, currentX);
+                YAHOO.util.Dom.setY(elm, currentY);
+
+                currentX += w + padding;
+            }
+        }
+
+        draw_register_lines(null, null);
     }
 
     //★★マウスでラベルをドラッグ中。動かしてるときだからここで挿入線をアレしたりコレしたり
@@ -1849,8 +1915,10 @@ $stmt->close();
         if (line_flag == 4) {
             document.getElementById("answer").style.borderColor = "red";
 
-            // 1. ドラッグ中の情報の取得
-            var dragL = Infinity, dragR = -Infinity, dragT = Infinity, dragB = -Infinity;
+            var dragL = Infinity,
+                dragR = -Infinity,
+                dragT = Infinity,
+                dragB = -Infinity;
             if (MyControls.length > 0) {
                 for (var i = 0; i < MyControls.length; i++) {
                     var r = YAHOO.util.Dom.getRegion(MyControls[i]);
@@ -1861,59 +1929,59 @@ $stmt->close();
                 }
             } else {
                 var r = YAHOO.util.Dom.getRegion(sender);
-                dragL = r.left; dragR = r.right; dragT = r.top; dragB = r.bottom;
+                dragL = r.left;
+                dragR = r.right;
+                dragT = r.top;
+                dragB = r.bottom;
             }
             var dragCY = dragT + (dragB - dragT) / 2;
-            var dragCX = dragL + (dragR - dragL) / 2; // 中心X
+            var dragCX = dragL + (dragR - dragL) / 2;
 
-            // 2. ターゲット探索
-            var groups = getAnswerGroups();
+            // ★重要: ここでは閾値25, ドラッグ除外(false)で厳密に判定
+            var groups = getAnswerGroups(25, false);
             var targetGroup = null;
 
-            // ▼▼▼ 修正: 判定範囲の設定 ▼▼▼
-            var thresholdY = 20;  // 縦ズレ許容 (厳しめ)
-            var marginX = 50;     // 横ズレ許容 (グループの左右端 + 50px まで反応)
-            // ▲▲▲ 修正ここまで ▲▲▲
-
-            var minDiff = Infinity; // 中心距離比較用
+            var thresholdY = 20;
+            var marginX = 50;
+            var minDiff = Infinity;
 
             for (var i = 0; i < groups.length; i++) {
                 var group = groups[i];
                 var groupCY = group.top + (group.bottom - group.top) / 2;
                 var groupCX = group.left + (group.right - group.left) / 2;
 
-                // 自分自身が含まれるグループは除外
-                var isSelf = false;
-                for (var m = 0; m < group.members.length; m++) {
-                    if (group.members[m].id == sender.id) isSelf = true;
-                    if (MyControls.indexOf(group.members[m]) != -1) isSelf = true;
-                }
-                if (isSelf) continue;
-
-                // Y軸判定 (高さが合っているか)
                 if (Math.abs(dragCY - groupCY) < thresholdY) {
-
-                    // ▼▼▼ 修正: X軸判定 (「端同士」ではなく「範囲内」かどうかを見る) ▼▼▼
-                    // グループの左端-margin から 右端+margin の間に、ドラッグの中心があれば反応
                     if (dragCX > group.left - marginX && dragCX < group.right + marginX) {
-
-                        // 複数の候補がある場合は、中心距離が近い方を優先
                         var diff = Math.abs(dragCX - groupCX);
                         if (diff < minDiff) {
                             minDiff = diff;
                             targetGroup = group;
                         }
                     }
-                    // ▲▲▲ 修正ここまで ▲▲▲
                 }
             }
 
-            // 描画関数を呼び出し (赤枠表示)
-            draw_register_lines(targetGroup);
+            // 縦線位置の計算
+            var insertInfo = null;
+            if (targetGroup) {
+                // 挿入位置計算関数を使用 (scriptタグ内に追加済みであることを確認してください)
+                var bestPos = getInsertPosition(targetGroup, dragCX);
+                insertInfo = {
+                    x: bestPos.x,
+                    top: targetGroup.top,
+                    bottom: targetGroup.bottom
+                };
+            }
+
+            // 描画 (赤枠 + 縦線)
+            draw_register_lines(targetGroup, insertInfo);
+
+            // draw3() は呼び出さない (描画が消えるため)
 
         } else if (line_flag == 0) {
             var line_array = Mylabels.slice(0);
-            var lstart_x = DefaultX; var lstart_y = DefaultY;
+            var lstart_x = DefaultX;
+            var lstart_y = DefaultY;
             document.getElementById("question").style.borderColor = "red";
             draw3();
             // ... (問題提示欄用の挿入線描画ロジックがあればここに記述) ...
@@ -2035,7 +2103,7 @@ $stmt->close();
             parameters: $params
         });
         //▲マウスデータの取得
-        function getA(req) { }
+        function getA(req) {}
 
         function getE(req) {
             alert("失敗g");
@@ -2044,9 +2112,9 @@ $stmt->close();
         // ▼▼▼ ここから下のブロックを、ごっそり差し替えてください ▼▼▼
 
         // 解答欄(Mylabels_ea)にある単語要素を、x座標の昇順でソート
-        sorted_labels = Mylabels_ea.filter(function (el) {
+        sorted_labels = Mylabels_ea.filter(function(el) {
             return el;
-        }).sort(function (a, b) {
+        }).sort(function(a, b) {
             var x_a = YAHOO.util.Dom.getRegion(a).left; // 各単語の左端のx座標を取得
             var x_b = YAHOO.util.Dom.getRegion(b).left;
             return x_a - x_b; // x座標が小さい順（左から右）に並べ替え
@@ -2486,7 +2554,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getwriteuser_progress,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -3194,9 +3262,13 @@ $stmt->close();
 
     <script type="text/javascript">
         function disableSelection(target) {
-            if (typeof target.onselectstart != "undefined") target.onselectstart = function () { return false }
+            if (typeof target.onselectstart != "undefined") target.onselectstart = function() {
+                return false
+            }
             else if (typeof target.style.MozUserSelect != "undefined") target.style.MozUserSelect = "none"
-            else target.onmousedown = function () { return false }
+            else target.onmousedown = function() {
+                return false
+            }
             target.style.cursor = "default"
         }
         disableSelection(document.getElementById("question"));
