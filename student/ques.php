@@ -289,6 +289,62 @@ $stmt->close();
             return false;
         }
     }
+
+    function createGroupObject(members) {
+        var minL = Infinity, maxR = -Infinity, minT = Infinity, maxB = -Infinity;
+        for (var i = 0; i < members.length; i++) {
+            var r = YAHOO.util.Dom.getRegion(members[i]);
+            minL = Math.min(minL, r.left);
+            maxR = Math.max(maxR, r.right);
+            minT = Math.min(minT, r.top);
+            maxB = Math.max(maxB, r.bottom);
+        }
+        return {
+            y: minT, // 代表Y
+            left: minL,
+            right: maxR,
+            top: minT,
+            bottom: maxB,
+            members: members
+        };
+    }
+
+    // レジスタの下線（黒）と、ホバー時の赤枠を描画する関数
+    // targetGroup: ホバー中のグループ（赤枠用）。nullなら赤枠なし。
+    // 【修正関数2】レジスタの下線（黒）と、ホバー時の赤枠を描画する
+    function draw_register_lines(targetGroup) {
+        BPen2.clear(); // 毎回クリアして再描画
+
+        // 1. 既存の全グループに対して黒い下線を引く
+        var groups = getAnswerGroups();
+        BPen2.setColor("black");
+        BPen2.setStroke(2); // 線の太さ
+
+        for (var i = 0; i < groups.length; i++) {
+            var g = groups[i];
+
+            // ★追加条件: メンバーが1つだけ(単体)の場合は下線を引かない
+            if (g.members.length < 2) {
+                continue;
+            }
+
+            // グループの左端から右端まで一本線を引く
+            var yLine = g.bottom + 2;
+            BPen2.drawLine(g.left - 5 + cx, yLine + cy, g.right + 5 + cx, yLine + cy);
+        }
+
+        // 2. ホバー対象がある場合、赤枠を描画
+        if (targetGroup) {
+            BPen2.setColor("red");
+            BPen2.setStroke(3);
+            var w = (targetGroup.right - targetGroup.left) + 20;
+            var h = (targetGroup.bottom - targetGroup.top) + 10;
+            BPen2.drawRect(targetGroup.left - 10 + cx, targetGroup.top - 5 + cy, w, h);
+        }
+
+        BPen2.paint();
+    }
+
     //-------------------------------------------------------------
     //ロードイベント
     //body がloadされた時点で実行される。
@@ -975,181 +1031,127 @@ $stmt->close();
             X_p = DefaultX_r3;
             Y_p = DefaultY_r3;
         }*/
-        else if (array_flag2 == 4) { // 解答欄にドロップされた場合
-            var answerRegion = YAHOO.util.Dom.getRegion('answer');
+        else if (array_flag2 == 4) { // 解答欄
             var isGroupMove = MyControls.length > 0;
+            var finalPositions = [];
 
-            // ▼▼▼ ここからが新しいアルゴリズムです ▼▼▼
+            // 1. ドラッグ中の情報の取得
+            var dragL = Infinity, dragR = -Infinity, dragT = Infinity, dragB = -Infinity;
+            var dragRegionFirst = YAHOO.util.Dom.getRegion(isGroupMove ? MyControls[0] : sender);
 
-            var finalPositions = []; // 各単語の最終位置を格納する配列
-
-            // 解答欄の境界線 (上半分と下半分の境目)
-            // top:160px + (height:380px / 2) = 350px
-            var boundaryY = 360;
-
-            // ■■■ 上半分 (ey < 350) の場合：既存の「弾く」処理を行う ■■■
-            if (ey < boundaryY) {
-
-                if (isGroupMove) {
-                    // --- グループ移動 (弾く処理あり) ---
-                    var groupBounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
-                    var relativePositions = [];
-
-                    // 1. グループ全体の境界と、各単語の相対位置を計算
-                    for (var i = 0; i < MyControls.length; i++) {
-                        var region = YAHOO.util.Dom.getRegion(MyControls[i]);
-                        groupBounds.left = Math.min(groupBounds.left, region.left);
-                        groupBounds.top = Math.min(groupBounds.top, region.top);
-                        groupBounds.right = Math.max(groupBounds.right, region.right);
-                        groupBounds.bottom = Math.max(groupBounds.bottom, region.bottom);
-                    }
-                    for (var i = 0; i < MyControls.length; i++) {
-                        var region = YAHOO.util.Dom.getRegion(MyControls[i]);
-                        relativePositions.push({
-                            label: MyControls[i],
-                            relX: region.left - groupBounds.left,
-                            relY: region.top - groupBounds.top
-                        });
-                    }
-
-                    var groupWidth = groupBounds.right - groupBounds.left;
-                    var groupHeight = groupBounds.bottom - groupBounds.top;
-
-                    // 2. グループ全体を一つの塊と見なして、最も近い空き場所を探す
-                    var finalX = groupBounds.left;
-                    var finalY = groupBounds.top;
-                    var positionFound = false;
-                    var radius = 5, angle = 0, maxRadius = 200;
-
-                    while (!positionFound && radius < maxRadius) {
-                        var checkX = groupBounds.left + Math.cos(angle) * radius;
-                        var checkY = groupBounds.top + Math.sin(angle) * radius;
-                        var virtualRegion = { top: checkY, left: checkX, bottom: checkY + groupHeight, right: checkX + groupWidth };
-
-                        if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
-                            virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
-
-                            var overlaps = false;
-                            for (var i = 0; i < Mylabels_ea.length; i++) {
-                                var existingLabel = Mylabels_ea[i];
-                                if (!existingLabel || MyControls.indexOf(existingLabel) !== -1) continue;
-                                var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
-                                if (!(virtualRegion.right < existingRegion.left || virtualRegion.left > existingRegion.right ||
-                                    virtualRegion.bottom < existingRegion.top || virtualRegion.top > existingRegion.bottom)) {
-                                    overlaps = true;
-                                    break;
-                                }
-                            }
-                            if (!overlaps) {
-                                positionFound = true;
-                                finalX = checkX;
-                                finalY = checkY;
-                            }
-                        }
-                        angle += 0.5;
-                        if (angle > Math.PI * 2) { angle = 0; radius += 5; }
-                    }
-
-                    // 3. 全員の最終位置を計算
-                    for (var i = 0; i < relativePositions.length; i++) {
-                        finalPositions.push({
-                            label: relativePositions[i].label,
-                            x: finalX + relativePositions[i].relX,
-                            y: finalY + relativePositions[i].relY
-                        });
-                    }
-
-                } else {
-                    // --- 単独移動 (弾く処理あり) ---
-                    var droppedLabel = sender;
-                    var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
-                    var droppedWidth = droppedRegion.right - droppedRegion.left;
-                    var droppedHeight = droppedRegion.bottom - droppedRegion.top;
-                    var finalX = droppedRegion.left, finalY = droppedRegion.top;
-
-                    var initialOverlap = false;
-                    for (var i = 0; i < Mylabels_ea.length; i++) {
-                        if (!Mylabels_ea[i]) continue;
-                        var existingRegion = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
-                        if (!(droppedRegion.right < existingRegion.left || droppedRegion.left > existingRegion.right ||
-                            droppedRegion.bottom < existingRegion.top || droppedRegion.top > existingRegion.bottom)) {
-                            initialOverlap = true;
-                            break;
-                        }
-                    }
-
-                    if (initialOverlap) {
-                        var positionFound = false;
-                        var radius = 5, angle = 0, maxRadius = 200;
-                        while (!positionFound && radius < maxRadius) {
-                            var checkX = droppedRegion.left + Math.cos(angle) * radius;
-                            var checkY = droppedRegion.top + Math.sin(angle) * radius;
-                            var virtualRegion = { top: checkY, left: checkX, bottom: checkY + droppedHeight, right: checkX + droppedWidth };
-
-                            if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
-                                virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
-                                var overlaps = false;
-                                for (var i = 0; i < Mylabels_ea.length; i++) {
-                                    if (!Mylabels_ea[i]) continue;
-                                    var existingRegion = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
-                                    if (!(virtualRegion.right < existingRegion.left || virtualRegion.left > existingRegion.right ||
-                                        virtualRegion.bottom < existingRegion.top || virtualRegion.top > existingRegion.bottom)) {
-                                        overlaps = true;
-                                        break;
-                                    }
-                                }
-                                if (!overlaps) {
-                                    positionFound = true;
-                                    finalX = checkX;
-                                    finalY = checkY;
-                                }
-                            }
-                            angle += 0.5;
-                            if (angle > Math.PI * 2) { angle = 0; radius += 5; }
-                        }
-                    }
-                    finalPositions.push({ label: droppedLabel, x: finalX, y: finalY });
+            if (isGroupMove) {
+                for (var i = 0; i < MyControls.length; i++) {
+                    var r = YAHOO.util.Dom.getRegion(MyControls[i]);
+                    dragL = Math.min(dragL, r.left);
+                    dragR = Math.max(dragR, r.right);
+                    dragT = Math.min(dragT, r.top);
+                    dragB = Math.max(dragB, r.bottom);
                 }
+            } else {
+                dragL = dragRegionFirst.left; dragR = dragRegionFirst.right;
+                dragT = dragRegionFirst.top; dragB = dragRegionFirst.bottom;
+            }
+            var dragWidth = dragR - dragL;
+            var dragCY = dragT + (dragB - dragT) / 2;
+            var dragCX = dragL + dragWidth / 2;
+
+            // 2. 吸着ターゲットの特定
+            var groups = getAnswerGroups();
+            var targetGroup = null;
+            var thresholdY = 20;
+            var marginX = 50; // 反応範囲 (広め)
+            var minDiff = Infinity;
+
+            for (var i = 0; i < groups.length; i++) {
+                var group = groups[i];
+                var groupCY = group.top + (group.bottom - group.top) / 2;
+                var groupCX = group.left + (group.right - group.left) / 2;
+
+                var isSelf = false;
+                for (var m = 0; m < group.members.length; m++) {
+                    if (group.members[m].id == sender.id) isSelf = true;
+                    if (isGroupMove && MyControls.indexOf(group.members[m]) != -1) isSelf = true;
+                }
+                if (isSelf) continue;
+
+                // Y軸判定
+                if (Math.abs(dragCY - groupCY) < thresholdY) {
+                    // X軸判定 (広範囲でヒットさせる)
+                    if (dragCX > group.left - marginX && dragCX < group.right + marginX) {
+                        var diff = Math.abs(dragCX - groupCX);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            targetGroup = group;
+                        }
+                    }
+                }
+            }
+
+            // 3. 座標決定
+            var finalTop = dragRegionFirst.top;
+            var finalLeft = dragL;
+            var padding = 17;
+
+            if (targetGroup) {
+                // === 吸着モード ===
+                finalTop = targetGroup.top;
+
+                // ▼▼▼ 修正: 端同士を比較してサイドを決定 ▼▼▼
+                // 右吸着の距離: [ドラッグ]→ ←[ターゲット]
+                var distRightToLeft = Math.abs(dragR - targetGroup.left);
+
+                // 左吸着の距離: [ターゲット]→ ←[ドラッグ]
+                var distLeftToRight = Math.abs(dragL - targetGroup.right);
+
+                // 基本は距離が近い方を採用するが、
+                // ドラッグの中心がグループの中心より左なら左吸着、右なら右吸着を優先させる判定も加味
+
+                if (distRightToLeft < distLeftToRight) {
+                    // 左側に配置 (ターゲットの左端につく)
+                    finalLeft = targetGroup.left - dragWidth - padding;
+                } else {
+                    // 右側に配置 (ターゲットの右端につく)
+                    finalLeft = targetGroup.right + padding;
+                }
+                // ▲▲▲ 修正ここまで ▲▲▲
 
             } else {
-                // ■■■ 下半分 (ey >= 350) の場合：弾く処理を行わない (自由配置) ■■■
-                // ※ここに将来的に別の実装を追加可能です。現在は「重なりを許容してそのまま置く」処理としています。
-
-                if (isGroupMove) {
-                    // グループの位置関係を維持したまま、現在のドロップ位置に確定させる
-                    for (var i = 0; i < MyControls.length; i++) {
-                        var region = YAHOO.util.Dom.getRegion(MyControls[i]);
-                        finalPositions.push({
-                            label: MyControls[i],
-                            x: region.left,
-                            y: region.top
-                        });
-                    }
-                } else {
-                    // 単独移動：現在の位置に確定させる
-                    var region = YAHOO.util.Dom.getRegion(sender);
-                    finalPositions.push({ label: sender, x: region.left, y: region.top });
-                }
+                // === 自由配置モード ===
             }
 
-            // 4. 計算した最終位置を、全単語に適用
+            // 4. 座標の適用
+            if (isGroupMove) {
+                var diffX = finalLeft - dragL;
+                var diffY = finalTop - dragT;
+                for (var i = 0; i < MyControls.length; i++) {
+                    var r = YAHOO.util.Dom.getRegion(MyControls[i]);
+                    finalPositions.push({
+                        label: MyControls[i],
+                        x: r.left + diffX,
+                        y: r.top + diffY
+                    });
+                }
+            } else {
+                finalPositions.push({ label: sender, x: finalLeft, y: finalTop });
+            }
+
             for (var i = 0; i < finalPositions.length; i++) {
                 YAHOO.util.Dom.setXY(finalPositions[i].label, [finalPositions[i].x, finalPositions[i].y]);
+                YAHOO.util.Dom.setStyle(finalPositions[i].label, "border", "none");
             }
 
-            // ▲▲▲ 新しいアルゴリズムはここまで ▲▲▲
-
+            // 配列更新
             mylabelarray3 = Mylabels_ea.slice(0);
             var labelsToAdd = isGroupMove ? MyControls : [sender];
             for (var k = 0; k < labelsToAdd.length; k++) {
-                var exists = mylabelarray3.some(function (label) {
-                    return label.id === labelsToAdd[k].id;
-                });
-                if (!exists) {
-                    mylabelarray3.push(labelsToAdd[k]);
-                }
+                var exists = mylabelarray3.some(function (label) { return label.id === labelsToAdd[k].id; });
+                if (!exists) mylabelarray3.push(labelsToAdd[k]);
             }
             Mylabels_ea = mylabelarray3.slice(0);
+
+            // 線再描画
+            draw_register_lines(null);
+
             return mylabelarray3;
         }
 
@@ -1698,6 +1700,82 @@ $stmt->close();
         }
 
     }
+
+    // 解答欄にある単語をY座標でグルーピングする関数
+    function getAnswerGroups() {
+        var groups = [];
+        var thresholdY = 5; // 同じ行とみなすY座標の誤差
+        var thresholdX = 20; // ★これ以上離れていたら別のグループとする（X軸の隙間）
+
+        // 1. まずはY座標だけで大まかなクラスタ（行）を作る
+        var yClusters = [];
+
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            var label = Mylabels_ea[i];
+
+            // ドラッグ中の単語(自分自身)はグループ計算に含めない
+            if (IsDragging) {
+                if (DragL && label.id == DragL.id) continue;
+                if (MyControls.length > 0 && MyControls.indexOf(label) != -1) continue;
+            }
+
+            var region = YAHOO.util.Dom.getRegion(label);
+            var added = false;
+
+            for (var j = 0; j < yClusters.length; j++) {
+                // Y座標が近いか？
+                if (Math.abs(yClusters[j].baseY - region.top) < thresholdY) {
+                    yClusters[j].members.push(label);
+                    added = true;
+                    break;
+                }
+            }
+
+            if (!added) {
+                yClusters.push({
+                    baseY: region.top,
+                    members: [label]
+                });
+            }
+        }
+
+        // 2. 各クラスタ内で、X座標順に並べ替え、距離が離れているものを分割する
+        for (var k = 0; k < yClusters.length; k++) {
+            var cluster = yClusters[k];
+
+            // X座標(左端)でソート
+            cluster.members.sort(function (a, b) {
+                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+            });
+
+            // 最初のメンバーでサブグループ開始
+            var currentSubGroup = [cluster.members[0]];
+
+            for (var i = 1; i < cluster.members.length; i++) {
+                var prev = cluster.members[i - 1];
+                var curr = cluster.members[i];
+                var prevRegion = YAHOO.util.Dom.getRegion(prev);
+                var currRegion = YAHOO.util.Dom.getRegion(curr);
+
+                // 「今の単語の左端」 - 「前の単語の右端」 が 閾値より大きいか？
+                if (currRegion.left - prevRegion.right > thresholdX) {
+                    // 離れているので、今のサブグループを確定させて、新しいサブグループを作る
+                    groups.push(createGroupObject(currentSubGroup));
+                    currentSubGroup = [curr];
+                } else {
+                    // 近いので同じグループに追加
+                    currentSubGroup.push(curr);
+                }
+            }
+            // 最後のサブグループを登録
+            if (currentSubGroup.length > 0) {
+                groups.push(createGroupObject(currentSubGroup));
+            }
+        }
+
+        return groups;
+    }
+
     //★★マウスでラベルをドラッグ中。動かしてるときだからここで挿入線をアレしたりコレしたり
     function MyLabels_MouseMove(sender) {
         if (IsDragging != true) {
@@ -1753,85 +1831,93 @@ $stmt->close();
         //document.getElementById("register2").style.borderColor = "black";
         //document.getElementById("register3").style.borderColor = "black";
         document.getElementById("answer").style.borderColor = "black";
-        //挿入線関係。まずy座標でどこに挿入線を引くか判定
+
+        // CSSのborderを全てリセット (前回borderで制御していた場合のため)
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            YAHOO.util.Dom.setStyle(Mylabels_ea[i], "border", "none");
+        }
+
+        var line_flag = -1;
         if (event.y <= 150) {
-            line_flag = 0;
-        } else if (event.y <= 550 && event.y > 160) {
-            line_flag = 4;
-        } /*else if (event.y <= 380 && event.y > 260) {
-            line_flag = 1;
-        } else if (event.y <= 460 && event.y > 380) {
-            line_flag = 2;
-        } else if (event.y > 460) {
-            line_flag = 3;
-        }*/else {
-            line_flag = -1; // 範囲外
+            line_flag = 0; // 問題提示欄
+        } else if (event.y > 150 && event.y <= 550) {
+            line_flag = 4; // 解答欄
         }
-        if (line_flag == 0) {
-            line_array = Mylabels.slice(0);
-            lstart_x = DefaultX;
-            lstart_y = DefaultY;
-            document.getElementById("question").style.borderColor = "red";
-        } /*else if (line_flag == 1) {
-            line_array = Mylabels_r1.slice(0);
-            lstart_x = DefaultX_r1;
-            lstart_y = DefaultY_r1;
-            document.getElementById("register1").style.borderColor = "red";
-        } else if (line_flag == 2) {
-            line_array = Mylabels_r2.slice(0);
-            lstart_x = DefaultX_r2;
-            lstart_y = DefaultY_r2;
-            document.getElementById("register2").style.borderColor = "red";
-        } else if (line_flag == 3) {
-            line_array = Mylabels_r3.slice(0);
-            lstart_x = DefaultX_r3;
-            lstart_y = DefaultY_r3;
-            document.getElementById("register3").style.borderColor = "red";
-        } */else if (line_flag == 4) {
-            line_array = Mylabels_ea.slice(0);
-            lstart_x = DefaultX_ea;
-            lstart_y = DefaultY_ea;
+
+        // ■ 解答欄の場合：接近検知と描画
+        // ■ 解答欄の場合：接近検知と描画
+        if (line_flag == 4) {
             document.getElementById("answer").style.borderColor = "red";
-        }
-        if (line_array.length == 0) {
-            var line_x = lstart_x;
-            var line_y = lstart_y;
-            var line_y2 = lstart_y + 18;
-        } else {
-            for (i = 0; i < line_array.length; i++) {
-                if (MyControls.length > 0) {
-                    var send = YAHOO.util.Dom.getRegion(MyControls[0]);
-                } else {
-                    var send = YAHOO.util.Dom.getRegion(sender);
+
+            // 1. ドラッグ中の情報の取得
+            var dragL = Infinity, dragR = -Infinity, dragT = Infinity, dragB = -Infinity;
+            if (MyControls.length > 0) {
+                for (var i = 0; i < MyControls.length; i++) {
+                    var r = YAHOO.util.Dom.getRegion(MyControls[i]);
+                    dragL = Math.min(dragL, r.left);
+                    dragR = Math.max(dragR, r.right);
+                    dragT = Math.min(dragT, r.top);
+                    dragB = Math.max(dragB, r.bottom);
                 }
-                var ali = YAHOO.util.Dom.getRegion(line_array[i]);
-                var ali1 = YAHOO.util.Dom.getRegion(line_array[i + 1]);
-                if (i == 0 && send.left < ali.left) {
-                    //もし左端のラベルの左側に挿入しようとするなら
-                    //左端のラベルから挿入位置を計算して表示
-                    line_x = ali.left - 8;
-                    line_y = ali.top;
-                    line_y2 = line_y + (ali.bottom - ali.top);
-                } else if (i == line_array.length - 1 && send.left >= ali.left) {
-                    //もし右端に挿入しようとするなら
-                    //右端のラベルから挿入位置を計算して表示
-                    line_x = ali.right + 8;
-                    line_y = ali.top;
-                    line_y2 = line_y + (ali.bottom - ali.top);
-                } else if (send.left >= ali.left && send.left < ali1.left) {
-                    //ラベルに挟まれた位置に挿入するなら
-                    //右のラベルから挿入位置を計算して表示
-                    line_x = ali1.left - 8;
-                    line_y = ali1.top;
-                    line_y2 = line_y + (ali1.bottom - ali1.top);
+            } else {
+                var r = YAHOO.util.Dom.getRegion(sender);
+                dragL = r.left; dragR = r.right; dragT = r.top; dragB = r.bottom;
+            }
+            var dragCY = dragT + (dragB - dragT) / 2;
+            var dragCX = dragL + (dragR - dragL) / 2; // 中心X
+
+            // 2. ターゲット探索
+            var groups = getAnswerGroups();
+            var targetGroup = null;
+
+            // ▼▼▼ 修正: 判定範囲の設定 ▼▼▼
+            var thresholdY = 20;  // 縦ズレ許容 (厳しめ)
+            var marginX = 50;     // 横ズレ許容 (グループの左右端 + 50px まで反応)
+            // ▲▲▲ 修正ここまで ▲▲▲
+
+            var minDiff = Infinity; // 中心距離比較用
+
+            for (var i = 0; i < groups.length; i++) {
+                var group = groups[i];
+                var groupCY = group.top + (group.bottom - group.top) / 2;
+                var groupCX = group.left + (group.right - group.left) / 2;
+
+                // 自分自身が含まれるグループは除外
+                var isSelf = false;
+                for (var m = 0; m < group.members.length; m++) {
+                    if (group.members[m].id == sender.id) isSelf = true;
+                    if (MyControls.indexOf(group.members[m]) != -1) isSelf = true;
+                }
+                if (isSelf) continue;
+
+                // Y軸判定 (高さが合っているか)
+                if (Math.abs(dragCY - groupCY) < thresholdY) {
+
+                    // ▼▼▼ 修正: X軸判定 (「端同士」ではなく「範囲内」かどうかを見る) ▼▼▼
+                    // グループの左端-margin から 右端+margin の間に、ドラッグの中心があれば反応
+                    if (dragCX > group.left - marginX && dragCX < group.right + marginX) {
+
+                        // 複数の候補がある場合は、中心距離が近い方を優先
+                        var diff = Math.abs(dragCX - groupCX);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            targetGroup = group;
+                        }
+                    }
+                    // ▲▲▲ 修正ここまで ▲▲▲
                 }
             }
-        }
-        //問題提示欄には表示させない
-        // ▼▼▼ このif文の条件を変更します ▼▼▼
-        if (line_flag != 0 && line_flag != 4) {
+
+            // 描画関数を呼び出し (赤枠表示)
+            draw_register_lines(targetGroup);
+
+        } else if (line_flag == 0) {
+            var line_array = Mylabels.slice(0);
+            var lstart_x = DefaultX; var lstart_y = DefaultY;
+            document.getElementById("question").style.borderColor = "red";
             draw3();
-            draw2(line_x, line_y, line_y2);
+            // ... (問題提示欄用の挿入線描画ロジックがあればここに記述) ...
+            // ※今回は解答欄メインの修正のため、問題提示欄の挙動は既存維持とします
         } else {
             draw3();
         }
@@ -3027,9 +3113,8 @@ $stmt->close();
 
     <div id="answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
     left:12;top:160;width:800;height:380px;font-size:12;
-    background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.1) 50%);"></div>
 
-    <div style="position:absolute;left:12;top:70">
+    <div style=" position:absolute;left:12;top:70">
         <font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font>
     </div>
     <div id="question" style="padding: 10px; border: 2px solid #333333;position:absolute;
