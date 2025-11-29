@@ -332,7 +332,7 @@ $stmt->close();
         for (var i = 0; i < groups.length; i++) {
             var g = groups[i];
             // メンバーが2つ未満なら線は引かない
-            if (g.members.length < 2) continue;
+            //if (g.members.length < 2) continue;
 
             // ★追加チェック: メンバー間の最大隙間をチェックし、
             // 万が一データ上で繋がっていても、見た目で離れていれば線を引かない(分割する)処理
@@ -1822,32 +1822,93 @@ $stmt->close();
             Mylabels_r3 = mylabelarray2.slice(0);
         } else if (array_flag2 == 4) {
             Mylabels_ea = mylabelarray2.slice(0);
+            // ▼▼▼ 強化版セーフティネット ▼▼▼
+            var exists = false;
+            for (var i = 0; i < Mylabels_ea.length; i++) {
+                if (Mylabels_ea[i].id == sender.id) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                // 配列に強制追加
+                Mylabels_ea.push(sender);
+
+                // ★追加: 座標順（左→右）に並び直して整合性を保つ
+                Mylabels_ea.sort(function(a, b) {
+                    var rA = YAHOO.util.Dom.getRegion(a);
+                    var rB = YAHOO.util.Dom.getRegion(b);
+                    return rA.left - rB.left;
+                });
+            }
+            // ▲▲▲ 強化版ここまで ▲▲▲
         }
+        // ▼▼▼【最終手段】配列と見た目の完全同期処理（ここを追加）▼▼▼
+        // 計算上のミスがあっても、画面上の位置を元に配列を強制的に再構築してゴースト化を防ぐ
+
+        var new_ea = []; // 新しい解答欄用配列
+        // Mylabels2 はロード時に作成された全単語のマスターリスト
+
+        for (var i = 0; i < Mylabels2.length; i++) {
+            var el = Mylabels2[i];
+            var region = YAHOO.util.Dom.getRegion(el);
+
+            // 現在のY座標が解答欄の範囲内（160pxより下、550px以下）にあるかチェック
+            if (region.top > 160 && region.top <= 550) {
+                new_ea.push(el);
+            }
+        }
+
+        // X座標（左から右）の順に並び替え
+        new_ea.sort(function(a, b) {
+            return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+        });
+
+        // グローバル変数をこの正しいリストで上書き
+        Mylabels_ea = new_ea;
+        // ▲▲▲【追加ここまで】▲▲▲
         MyControls = [];
     }
 
     // 解答欄にある単語をY座標でグルーピングする関数
+    // 解答欄にある単語をY座標でグルーピングする関数
     // 【修正】解答欄の単語をグループ化する (単純な距離判定)
-    function getAnswerGroups() {
+    // 引数を受け取るように修正し、forceIncludeを機能させる
+    // 【修正】解答欄の単語をグループ化する
+    function getAnswerGroups(thresholdX, forceInclude) {
+        if (thresholdX === undefined) thresholdX = 20;
+        if (forceInclude === undefined) forceInclude = false;
+
         var groups = [];
-        var thresholdY = 15; // 同じ行とみなすY座標の誤差
-        var thresholdX = 20; // ★これ以上離れていたら別のグループとする
+        var thresholdY = 15; // 行判定の許容範囲
 
         // 1. Y座標によるクラスタリング
         var yClusters = [];
         for (var i = 0; i < Mylabels_ea.length; i++) {
             var label = Mylabels_ea[i];
 
-            // ドラッグ中の単語は除外
-            if (IsDragging) {
+            // ドラッグ中の単語を除外するかどうかの判定
+            if (IsDragging && !forceInclude) {
+                // DragL（現在ドラッグ中の要素）と一致する場合はスキップ
                 if (DragL && label.id == DragL.id) continue;
-                if (MyControls.length > 0 && MyControls.indexOf(label) != -1) continue;
+                // グループ移動中のメンバーならスキップ
+                if (MyControls.length > 0) {
+                    var isDraggingMember = false;
+                    for (var m = 0; m < MyControls.length; m++) {
+                        if (MyControls[m].id == label.id) {
+                            isDraggingMember = true;
+                            break;
+                        }
+                    }
+                    if (isDraggingMember) continue;
+                }
             }
 
             var region = YAHOO.util.Dom.getRegion(label);
             var added = false;
 
             for (var j = 0; j < yClusters.length; j++) {
+                // Y座標が近いものを同じ行とみなす
                 if (Math.abs(yClusters[j].baseY - region.top) < thresholdY) {
                     yClusters[j].members.push(label);
                     added = true;
@@ -1865,6 +1926,7 @@ $stmt->close();
         // 2. X座標距離による分割
         for (var k = 0; k < yClusters.length; k++) {
             var cluster = yClusters[k];
+            // 左から右へソート
             cluster.members.sort(function(a, b) {
                 return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
             });
@@ -1876,6 +1938,7 @@ $stmt->close();
                 var prevRegion = YAHOO.util.Dom.getRegion(prev);
                 var currRegion = YAHOO.util.Dom.getRegion(curr);
 
+                // 単語間の距離が thresholdX 以上なら別グループにする
                 if (currRegion.left - prevRegion.right > thresholdX) {
                     groups.push(createGroupObject(currentSubGroup));
                     currentSubGroup = [curr];
