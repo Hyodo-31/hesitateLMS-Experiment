@@ -192,6 +192,7 @@ $_SESSION["page"] = "ques";
     var region = 0;
     var URL = './' //サーバー用
     var attempt = 0; //20250514追加
+    var GroupOffsets = []; // グループメンバーの相対位置保存用
 
     var JapaneseAnswer = "";
     var sorted_labels = new Array();
@@ -1085,7 +1086,7 @@ $stmt->close();
             var dragRegionFirst = YAHOO.util.Dom.getRegion(dragFirst);
             var dragWidth = 0;
             var minL = dragRegionFirst.left;
-            var dragL, dragR; // 追加
+            var dragL, dragR;
 
             if (isGroupMove) {
                 var maxR = -Infinity;
@@ -1097,11 +1098,11 @@ $stmt->close();
                 }
                 dragWidth = maxR - minL;
                 dragL = minL;
-                dragR = maxR; // 範囲設定
+                dragR = maxR;
             } else {
                 dragWidth = dragRegionFirst.right - dragRegionFirst.left;
                 dragL = dragRegionFirst.left;
-                dragR = dragRegionFirst.right; // 範囲設定
+                dragR = dragRegionFirst.right;
             }
             var dragCX = minL + (dragWidth / 2);
             var dragCY = dragRegionFirst.top + (dragRegionFirst.bottom - dragRegionFirst.top) / 2;
@@ -1116,14 +1117,11 @@ $stmt->close();
             for (var i = 0; i < groups.length; i++) {
                 var group = groups[i];
                 var groupCY = group.top + (group.bottom - group.top) / 2;
-
                 if (Math.abs(dragCY - groupCY) < thresholdY) {
-                    // ▼▼▼ 修正: 範囲ベースの判定に変更 ▼▼▼
                     if (dragR > group.left - marginX && dragL < group.right + marginX) {
                         var distX = Math.max(0, group.left - dragR, dragL - group.right);
                         var distY = Math.abs(dragCY - groupCY);
                         var diff = Math.sqrt(distX * distX + distY * distY);
-
                         if (diff < minDiff) {
                             minDiff = diff;
                             targetGroup = group;
@@ -1138,47 +1136,81 @@ $stmt->close();
             var padding = 17;
 
             if (targetGroup) {
-                // ■ 割り込みモード ■
                 var bestPos = getInsertPosition(targetGroup, dragCX);
                 var insertIndex = bestPos.index;
                 var insertX = bestPos.x;
 
-                // 挿入位置より後ろにある既存単語を、ドラッグ幅分だけ右にずらす
-                // ※この操作によりスペースを空ける
-                var shiftAmount = dragWidth + padding;
+                // ▼▼▼ 修正点: 既存の隙間チェックを行い、無駄なシフト（右ズレ）を防ぐ ▼▼▼
 
-                // メンバーをソートして取得
+                // メンバーをソート
                 var members = targetGroup.members.slice(0).sort(function(a, b) {
                     return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
                 });
 
-                // インデックス以降の単語を右へ
-                for (var i = insertIndex; i < members.length; i++) {
-                    var elm = members[i];
-                    var currentR = YAHOO.util.Dom.getRegion(elm);
-                    YAHOO.util.Dom.setX(elm, currentR.left + shiftAmount);
-                }
+                // 「ずらす必要があるか？」の判定フラグ
+                var needShift = true;
 
-                // 自分自身を挿入位置に配置
-                // 前の単語があればその右、なければグループ左端(または挿入X)
-                if (insertIndex > 0) {
+                // ケースA: 先頭への挿入 (index 0)
+                if (insertIndex == 0) {
+                    // 現在の左端(members[0])と、ドラッグしている単語の左端(dragL)との距離を測る
+                    // すでに十分なスペース（ドラッグ幅分）が空いているなら、ずらさない
+                    // 例: 左端の単語をピックアップして、そのまま戻した場合など
+                    if (members.length > 0) {
+                        var firstElmX = YAHOO.util.Dom.getRegion(members[0]).left;
+                        var gap = firstElmX - dragL;
+                        // ギャップがドラッグ幅の8割以上あれば「既に空いている」とみなす
+                        if (gap > dragWidth * 0.8) {
+                            needShift = false;
+                            // 既に空いている場所にスナップさせる（基準位置 - 幅 - 余白）
+                            finalLeft = firstElmX - dragWidth - padding;
+                        }
+                    }
+                }
+                // ケースB: 末尾への挿入
+                else if (insertIndex >= members.length) {
+                    needShift = false; // 末尾なら後ろをずらす必要はない
+                    var lastElm = members[members.length - 1];
+                    var lastR = YAHOO.util.Dom.getRegion(lastElm);
+                    finalLeft = lastR.right + padding;
+                }
+                // ケースC: 中間への挿入
+                else {
                     var prevElm = members[insertIndex - 1];
+                    var nextElm = members[insertIndex];
                     var prevR = YAHOO.util.Dom.getRegion(prevElm);
-                    finalLeft = prevR.right + padding;
-                } else {
-                    // 先頭挿入の場合は、現在の挿入線Xから幅分引いた位置（右寄せ）か
-                    // そのまま挿入線位置（左寄せ）か選べるが、ここでは挿入線位置に左端を合わせる
-                    // もし既存先頭より左なら、既存先頭はそのままで自分が左に来る
-                    finalLeft = insertX;
-                    // ※先頭挿入の場合、既存単語(index 0以降)は上で既に右にずれているのでOK
+                    var nextR = YAHOO.util.Dom.getRegion(nextElm);
+
+                    var gap = nextR.left - prevR.right;
+                    // 隙間が十分あればずらさない
+                    if (gap > dragWidth + padding) {
+                        needShift = false;
+                        finalLeft = prevR.right + padding;
+                    }
                 }
 
-                finalTop = targetGroup.top; // 高さは合わせる
+                // シフトが必要な場合のみ実行
+                if (needShift) {
+                    var shiftAmount = dragWidth + padding;
+                    for (var i = insertIndex; i < members.length; i++) {
+                        var elm = members[i];
+                        var currentR = YAHOO.util.Dom.getRegion(elm);
+                        YAHOO.util.Dom.setX(elm, currentR.left + shiftAmount);
+                    }
+                    // 自分自身の位置設定（シフト時は insertX に合わせる）
+                    if (insertIndex > 0) {
+                        var prevElm = members[insertIndex - 1];
+                        var prevR = YAHOO.util.Dom.getRegion(prevElm);
+                        finalLeft = prevR.right + padding;
+                    } else {
+                        finalLeft = insertX;
+                    }
+                }
+
+                finalTop = targetGroup.top;
+                // ▲▲▲ 修正ここまで ▲▲▲
 
             } else {
-                // ■ 自由配置モード ■
-                // 何もしない（座標計算なし、既存単語も動かさない）
-                // これにより、単語を抜いた後のスペースはそのまま残る
+                // 自由配置モード
             }
 
             // 4. 座標適用
@@ -1197,7 +1229,7 @@ $stmt->close();
                 YAHOO.util.Dom.setStyle(sender, "border", "none");
             }
 
-            // 5. 配列更新
+            // 5. 配列更新 & 整列
             var mylabelarray3 = Mylabels_ea.slice(0);
             var labelsToAdd = isGroupMove ? MyControls : [sender];
             for (var k = 0; k < labelsToAdd.length; k++) {
@@ -1209,16 +1241,8 @@ $stmt->close();
             Mylabels_ea = mylabelarray3.slice(0);
 
             if (targetGroup) {
-                // targetGroupは古い座標情報なので、メンバー情報を使って最新の状態を取得しなおすのが安全ですが、
-                // ここでは簡易的にメンバーリストを渡して整列させます。
-
-                // ただし、targetGroup.membersには「今ドロップした単語」が含まれていない可能性があるため、
-                // 最新のグループ情報を取得して、該当するグループだけを整列させます。
-
-                // 1. 最新の全グループを取得 (ドラッグ中の単語も含める=true)
+                // 念のため再取得して整列
                 var currentGroups = getAnswerGroups(80, true);
-
-                // 2. ドロップした単語(sender)が含まれるグループを探す
                 var groupToArrange = null;
                 for (var i = 0; i < currentGroups.length; i++) {
                     var g = currentGroups[i];
@@ -1231,31 +1255,19 @@ $stmt->close();
                     if (groupToArrange) break;
                 }
 
-                // 3. そのグループだけ整列
                 if (groupToArrange) {
-                    // ▼▼▼ 修正: 基準となる左端(anchorX)を計算して渡す ▼▼▼
-                    // 基本はターゲットグループの元の左端。
-                    // ただし「先頭(index 0)」に割り込んだ場合だけ、左に広がる必要がある。
-
-                    var anchorX = targetGroup.left; // 元の左端
-
-                    // 今回挿入した場所が、元の左端より左にあるかチェック
-                    // (targetGroupは挿入前の座標情報を持っています)
+                    // 整列基準位置: もし左端に挿入（かつシフトなし）したなら、自分の位置を基準にする
+                    var anchorX = targetGroup.left;
                     if (finalLeft < targetGroup.left) {
-                        anchorX = finalLeft; // 挿入した新しい単語の位置を基準にする
+                        anchorX = finalLeft;
                     }
-
-                    // 第2引数に anchorX を渡す
                     rearrangeSpecificGroup(groupToArrange, anchorX);
-                    // ▲▲▲ 修正ここまで ▲▲▲
                 } else {
                     draw_register_lines(null, null, true);
                 }
             } else {
-                // 自由配置の場合は整列しない（線だけ引く）
                 draw_register_lines(null, null, true);
             }
-            // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
 
             return mylabelarray3;
         }
@@ -1549,6 +1561,20 @@ $stmt->close();
         var hLabel = sender;
         DragL = sender; //IEのバグ対応
         IsDragging = true;
+
+        // グループ化されている場合、ドラッグ開始時点での相対位置を記録する
+        if (MyControls.length > 0) {
+            GroupOffsets = [];
+            var baseRegion = YAHOO.util.Dom.getRegion(sender); // ドラッグする単語の位置
+            for (var i = 0; i < MyControls.length; i++) {
+                var targetRegion = YAHOO.util.Dom.getRegion(MyControls[i]);
+                // 相対座標（差分）を保存
+                GroupOffsets.push({
+                    x: targetRegion.left - baseRegion.left,
+                    y: targetRegion.top - baseRegion.top
+                });
+            }
+        }
         //一時退避・・・レジスタなくすからよい？
         var DPos = 0;
         DLabel = "";
@@ -1575,17 +1601,18 @@ $stmt->close();
             } else {
                 mylabelarray.splice(index_sender, 1);
             }
-            // ▼▼▼ ここからが修正箇所です ▼▼▼
-            // ドラッグ開始元が解答欄(array_flag == 4)でなければ、残りの単語を整列する
-            if (array_flag != 4) {
-                //各フラグに合わせて、デフォルトのYの値を変える。Xはついで。
-                //array_flagは、ラベルのドラッグがどこで開始したかを示している。(問題提示欄か、レジスタか..？)
-                //それによってデフォルトのY座標を変化させる。(ここでは、元あったラベルの並べ替えを行うので。)
-                //ここで示すX,Y座標は、ドラッグ中のラベルがあったラベル群のX,Yだよ。
+            // 解答欄(array_flag == 4)以外の場合だけ、穴埋め（位置ズレ）処理を行うように制限する
+            // これにより、解答欄をクリックした瞬間の「左端が右にズレる」現象が止まります
+
+            if (array_flag != 4) { // ←【重要】このif文で囲ってください
+
+                //各フラグに合わせて、デフォルトのYの値を変える。
                 var X_p = 0;
                 var Y_p = 0;
                 var DestX = 0;
                 var DestY = 0;
+
+                // レジスタ用座標設定（元のコードにあるはずです）
                 if (array_flag == 1) {
                     X_p = DefaultX_r1;
                     Y_p = DefaultY_r1;
@@ -1596,26 +1623,24 @@ $stmt->close();
                     X_p = DefaultX_r3;
                     Y_p = DefaultY_r3;
                 }
-                // (元のコードでは array_flag == 4 の場合の分岐がありましたが、
-                // このifブロック内では不要になるため、ここでは省略しています)
 
                 //相対位置の計算
                 var hl = YAHOO.util.Dom.getRegion(hLabel);
                 DestX = hl.left + event.x - DiffPoint.x;
                 DestY = hl.top + event.y - DiffPoint.y;
 
-                //元の位置にあるラベルの位置を決定
+                //元の位置にあるラベルの位置を決定（ここがズレの原因！）
                 for (i = 0; i <= mylabelarray.length; i++) {
                     if (i == 0) {
                         YAHOO.util.Dom.setX(mylabelarray[i], X_p);
                         YAHOO.util.Dom.setY(mylabelarray[i], Y_p);
                     } else {
                         var al = YAHOO.util.Dom.getRegion(mylabelarray[i - 1]);
-                        YAHOO.util.Dom.setX(mylabelarray[i], al.right + 17); //解像度がちがうため？
+                        YAHOO.util.Dom.setX(mylabelarray[i], al.right + 17);
                         YAHOO.util.Dom.setY(mylabelarray[i], Y_p);
                     }
                 }
-            } // ▲▲▲ if (array_flag != 4) の閉じカッコを追加 ▲▲▲
+            }
         }
 
         //経過時間取得-----
@@ -2058,38 +2083,21 @@ $stmt->close();
         }
         var hLabel = sender;
 
-        //グループ化ラベルを動かすときの処理。何故動いているか不明。
-        var GroupMem = 0;
-        hl1 = YAHOO.util.Dom.getRegion(hLabel);
-        for (i = 0; i <= MyControls.length - 1; i++) {
-            var mcl = YAHOO.util.Dom.getRegion(MyControls[i]);
-            if (hl1.left == mcl.left && hl1.top == mcl.top) {
-                GroupMem = i //今どのラベルを動かしてるかを記憶（グループ化ラベル）
-                break;
-            }
-        }
-        //グループ化ラベルの位置を決定
-        for (j = 0; j <= MyControls.length - 1; j++) {
-            //ドラッグラベルの左側の位置を決定(hLabelの左側をはじめに決定、それ以降は減算により位置を決定していく)
-            if (j < GroupMem) {
-                var mcl1 = YAHOO.util.Dom.getRegion(MyControls[GroupMem - 1]);
-                YAHOO.util.Dom.setX(MyControls[GroupMem - 1], hl1.left - (mcl1.right - mcl1.left) - 10); //解像度
-                YAHOO.util.Dom.setY(MyControls[GroupMem - 1], hl1.top);
-                for (k = GroupMem - 1; k >= 0; k--) {
-                    var mcl2 = YAHOO.util.Dom.getRegion(MyControls[k + 1]);
-                    var mcl3 = YAHOO.util.Dom.getRegion(MyControls[k]);
-                    YAHOO.util.Dom.setX(MyControls[k], mcl2.left - (mcl3.right - mcl3.left) - 10); //解像度の影響本来は10
-                    YAHOO.util.Dom.setY(MyControls[k], mcl2.top);
+        // グループ化されている場合、記録したオフセットに従って他の単語を追従させる
+        if (MyControls.length > 0) {
+            // ドラッグ中の単語(hLabel)はYUIライブラリがマウスに合わせて動かしてくれている
+            var baseRegion = YAHOO.util.Dom.getRegion(hLabel);
+
+            for (var i = 0; i < MyControls.length; i++) {
+                // ドラッグ中の単語自身以外を追従させる
+                if (MyControls[i].id !== hLabel.id) {
+                    // 保存しておいた相対位置（GroupOffsets）を使って配置
+                    // これにより、ドラッグ開始時の「見た目のまま」移動します
+                    if (GroupOffsets[i]) {
+                        YAHOO.util.Dom.setX(MyControls[i], baseRegion.left + GroupOffsets[i].x);
+                        YAHOO.util.Dom.setY(MyControls[i], baseRegion.top + GroupOffsets[i].y);
+                    }
                 }
-                j = GroupMem;
-            } else if (j == GroupMem) {
-                YAHOO.util.Dom.setX(MyControls[j], hl1.left);
-                YAHOO.util.Dom.setY(MyControls[j], hl1.top);
-            } else if (j > GroupMem) {
-                //ドラッグラベルの右側の位置を決定
-                var mclj = YAHOO.util.Dom.getRegion(MyControls[j - 1]);
-                YAHOO.util.Dom.setX(MyControls[j], mclj.right + 10); //
-                YAHOO.util.Dom.setY(MyControls[j], mclj.top);
             }
         }
 
