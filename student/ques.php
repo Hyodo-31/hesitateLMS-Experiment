@@ -1745,7 +1745,7 @@ $stmt->close();
         }*/
 
         // 解答欄（150px超 ～ 560px以下）にドロップされた場合のみ解答欄扱いにする
-        if (event.y > 160 && event.y <= 550) {
+        if (event.y > 160 && event.y <= 550 && event.x >= 12 && event.x <= 812) {
             array_flag2 = 4;
         }
         // それ以外（一番上の問題提示欄、または一番下の無効エリア）は
@@ -2121,8 +2121,10 @@ $stmt->close();
         }
 
         var line_flag = -1;
+
+        var isValidX = (event.x >= 12 && event.x <= 812);
         if (event.y <= 150) line_flag = 0;
-        else if (event.y > 150 && event.y <= 550) line_flag = 4;
+        else if (event.y > 150 && event.y <= 550 && isValidX) line_flag = 4;
 
         if (line_flag == 4) {
             document.getElementById("answer").style.borderColor = "red";
