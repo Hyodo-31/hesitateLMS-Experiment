@@ -1386,10 +1386,8 @@ $stmt->close();
         });
 
         if (isInAnswerArea) {
-            // 解答欄の単語をx座標でソートしたコピーを作成
-            var sortedCopy = Mylabels_ea.slice(0).sort(function(a, b) {
-                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
-            });
+            // 【変更】X座標のみのソートではなく、行（Y座標）を考慮したソート関数を使用
+            var sortedCopy = getSortedAnswerLabels();
 
             // ソート済み配列内でのインデックスを探す
             var orderIndex = -1;
@@ -1401,12 +1399,11 @@ $stmt->close();
             }
 
             if (orderIndex !== -1) {
-                tooltip.innerHTML = orderIndex + 1; // 順番は1から始まるため +1
+                tooltip.innerHTML = orderIndex + 1; // 1から始まる番号を表示
                 var hoveredRegion = YAHOO.util.Dom.getRegion(hoveredLabel);
 
-                // ポップアップを単語の左上に表示
                 tooltip.style.left = (hoveredRegion.left) + 'px';
-                tooltip.style.top = (hoveredRegion.top - 20) + 'px'; // 20px上に表示
+                tooltip.style.top = (hoveredRegion.top - 20) + 'px';
                 tooltip.style.display = 'block';
             }
         }
@@ -2027,6 +2024,32 @@ $stmt->close();
         return groups;
     }
 
+    // ======================= ▼▼▼ 修正：ソート用共通関数 ▼▼▼ =======================
+    // 単語群を「ひとつの塊」とみなし、その「左端(X座標)」が小さい順にソートする関数
+    function getSortedAnswerLabels() {
+        // 1. 既存の関数を使って、視覚的なまとまり（グループ）を取得
+        // しきい値25px、ドラッグ中は含めない
+        var groups = getAnswerGroups(25, false);
+
+        // 2. グループの「左端（left）」を比較して、小さい順（左→右）に並べ替え
+        // ※ここではY座標（高さ）は一切無視され、X座標の開始位置だけで順序が決まります
+        groups.sort(function(a, b) {
+            return a.left - b.left;
+        });
+
+        // 3. グループ内の単語を展開して、1つの配列にまとめる
+        var sortedList = [];
+        for (var i = 0; i < groups.length; i++) {
+            var members = groups[i].members;
+            // グループ内の単語は getAnswerGroups の時点ですでに左から右に並んでいます
+            for (var j = 0; j < members.length; j++) {
+                sortedList.push(members[j]);
+            }
+        }
+        return sortedList;
+    }
+    // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
+
     // 【追加】指定したグループ内での挿入位置を計算
     function getInsertPosition(group, checkX) {
         var members = group.members;
@@ -2433,14 +2456,8 @@ $stmt->close();
 
         // ▼▼▼ ここから下のブロックを、ごっそり差し替えてください ▼▼▼
 
-        // 解答欄(Mylabels_ea)にある単語要素を、x座標の昇順でソート
-        sorted_labels = Mylabels_ea.filter(function(el) {
-            return el;
-        }).sort(function(a, b) {
-            var x_a = YAHOO.util.Dom.getRegion(a).left; // 各単語の左端のx座標を取得
-            var x_b = YAHOO.util.Dom.getRegion(b).left;
-            return x_a - x_b; // x座標が小さい順（左から右）に並べ替え
-        });
+        // 【変更】単純なX座標ソートではなく、行（Y座標）を考慮したソート関数を使用
+        sorted_labels = getSortedAnswerLabels();
 
         // ソートされた順に単語を連結して解答文を作成
         MyAnswer = "";
