@@ -1560,16 +1560,56 @@ $stmt->close();
         IsDragging = true;
 
         // グループ化されている場合、ドラッグ開始時点での相対位置を記録する
+        // グループ化されている場合、ドラッグ開始時点で横一列に整列させるための相対位置を計算する
         if (MyControls.length > 0) {
             GroupOffsets = [];
-            var baseRegion = YAHOO.util.Dom.getRegion(sender); // ドラッグする単語の位置
+            
+            // 1. 現在のX座標順（左にある順）にソートする
+            MyControls.sort(function(a, b) {
+                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+            });
+
+            // 2. ドラッグの基準となる単語（マウスで掴んだ単語）が、ソート後の配列のどこにいるか特定する
+            var senderIndex = -1;
+            for(var i = 0; i < MyControls.length; i++) {
+                if(MyControls[i].id === sender.id) {
+                    senderIndex = i;
+                    break;
+                }
+            }
+
+            // 3. 横一列に並べたときの「理想の相対位置」を計算する
+            var tempX = [];
+            var currentX = 0;
+            var padding = 17; // 単語間の隙間
+
+            // 先頭を0とした場合の各単語のX位置を算出
+            for(var i = 0; i < MyControls.length; i++) {
+                tempX.push(currentX);
+                var r = YAHOO.util.Dom.getRegion(MyControls[i]);
+                // 次の単語のために、現在の幅 + 隙間 を加算
+                currentX += (r.right - r.left) + padding;
+            }
+
+            // 4. マウスで掴んだ単語(sender)の位置を基準(0)にするよう全体をシフト
+            // これにより、掴んだ単語はマウス位置に留まり、他がその横に整列します
+            var baseOffset = (senderIndex !== -1) ? tempX[senderIndex] : 0;
+            var senderRegion = YAHOO.util.Dom.getRegion(sender);
+
             for (var i = 0; i < MyControls.length; i++) {
-                var targetRegion = YAHOO.util.Dom.getRegion(MyControls[i]);
-                // 相対座標（差分）を保存
+                // 新しいオフセットを保存 (Yは0にして横並びにする)
+                var offsetX = tempX[i] - baseOffset;
+                
                 GroupOffsets.push({
-                    x: targetRegion.left - baseRegion.left,
-                    y: targetRegion.top - baseRegion.top
+                    x: offsetX,
+                    y: 0 
                 });
+
+                // ★重要: ドラッグ開始直後に見た目も即座に整列させる
+                if (MyControls[i].id !== sender.id) {
+                     YAHOO.util.Dom.setX(MyControls[i], senderRegion.left + offsetX);
+                     YAHOO.util.Dom.setY(MyControls[i], senderRegion.top); // Y座標をsenderに合わせる
+                }
             }
         }
         //一時退避・・・レジスタなくすからよい？
