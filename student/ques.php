@@ -2665,6 +2665,11 @@ $stmt->close();
         }
         // ▲▲▲ 追加ここまで ▲▲▲
 
+        // ▼▼▼ 追加：キャンバスの描画（下線など）をクリアする ▼▼▼
+        if (typeof BPen2 !== 'undefined') BPen2.clear(); // 下線（黒線）を消す
+        if (typeof BPen !== 'undefined') BPen.clear();   // グループ化の枠線があれば消す
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         if (OID == nEnd) {
             alert(<?= json_encode(translate('ques.php_996行目_終了です')) ?>);
             return;
@@ -2778,6 +2783,11 @@ $stmt->close();
             previewBox.innerHTML = "";
             YAHOO.util.Dom.setStyle("AnswerPreview", "display", "block");
         }
+        // ▲▲▲ 追加ここまで ▲▲▲
+
+        // ▼▼▼ 追加：キャンバスの描画（下線など）をクリアする ▼▼▼
+        if (typeof BPen2 !== 'undefined') BPen2.clear(); // 下線（黒線）を消す
+        if (typeof BPen !== 'undefined') BPen.clear();   // グループ化の枠線があれば消す
         // ▲▲▲ 追加ここまで ▲▲▲
         setques();
 
