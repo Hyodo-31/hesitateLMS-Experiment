@@ -1242,7 +1242,7 @@ $stmt->close();
 
             if (targetGroup) {
                 // 念のため再取得して整列
-                var currentGroups = getAnswerGroups(80, true);
+                var currentGroups = getAnswerGroups(20, true);
                 var groupToArrange = null;
                 for (var i = 0; i < currentGroups.length; i++) {
                     var g = currentGroups[i];
@@ -1847,53 +1847,102 @@ $stmt->close();
             Mylabels_r3 = mylabelarray2.slice(0);
         } else if (array_flag2 == 4) {
             Mylabels_ea = mylabelarray2.slice(0);
-            // ▼▼▼ 強化版セーフティネット ▼▼▼
-            var exists = false;
-            for (var i = 0; i < Mylabels_ea.length; i++) {
-                if (Mylabels_ea[i].id == sender.id) {
-                    exists = true;
-                    break;
-                }
-            }
-            if (!exists) {
-                // 配列に強制追加
-                Mylabels_ea.push(sender);
-
-                // ★追加: 座標順（左→右）に並び直して整合性を保つ
-                Mylabels_ea.sort(function(a, b) {
-                    var rA = YAHOO.util.Dom.getRegion(a);
-                    var rB = YAHOO.util.Dom.getRegion(b);
-                    return rA.left - rB.left;
-                });
-            }
-            // ▲▲▲ 強化版ここまで ▲▲▲
+            resolveCollisions()
         }
-        // ▼▼▼【最終手段】配列と見た目の完全同期処理（ここを追加）▼▼▼
-        // 計算上のミスがあっても、画面上の位置を元に配列を強制的に再構築してゴースト化を防ぐ
-
-        var new_ea = []; // 新しい解答欄用配列
-        // Mylabels2 はロード時に作成された全単語のマスターリスト
+        // ▼▼▼【最終手段】配列と見た目の完全同期処理 ▼▼▼
+        var new_ea = [];
 
         for (var i = 0; i < Mylabels2.length; i++) {
             var el = Mylabels2[i];
             var region = YAHOO.util.Dom.getRegion(el);
 
-            // 現在のY座標が解答欄の範囲内（160pxより下、550px以下）にあるかチェック
-            if (region.top > 160 && region.top <= 550) {
+            // 解答欄の範囲内チェック
+            var isValidY = (region.top > 160 && region.top <= 550);
+            var isValidX = (region.left >= 12 && region.left <= 812);
+
+            if (isValidY && isValidX) {
                 new_ea.push(el);
             }
         }
 
-        // X座標（左から右）の順に並び替え
+        // X座標順に並び替え
         new_ea.sort(function(a, b) {
             return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
         });
 
-        // グローバル変数をこの正しいリストで上書き
+        // グローバル変数を上書き
         Mylabels_ea = new_ea;
-        // ▲▲▲【追加ここまで】▲▲▲
+        // ▲▲▲ 同期処理ここまで ▲▲▲
+
         MyControls = [];
     }
+
+    // 衝突解決のメイン関数
+    function resolveCollisions() {
+        // 現在の全グループを取得（この時点では重なっている可能性がある）
+        var groups = getAnswerGroups(20, false);
+        
+        // 処理の優先順位を決める（左上のものほど動かさない、右下のものほど動かす）
+        groups.sort(function(a, b) {
+            if (Math.abs(a.top - b.top) > 20) return a.top - b.top;
+            return a.left - b.left;
+        });
+
+        // 玉突き事故を考慮して数回繰り返す
+        for (var iter = 0; iter < 5; iter++) {
+            var movedCount = 0;
+
+            // 総当たりで重なりチェック
+            for (var i = 0; i < groups.length; i++) {
+                for (var j = i + 1; j < groups.length; j++) {
+                    var g1 = groups[i];
+                    var g2 = groups[j];
+
+                    // 単純な重なり判定（接触しているか）
+                    var isOverlap = !(g1.right < g2.left || 
+                                      g1.left > g2.right || 
+                                      g1.bottom < g2.top || 
+                                      g1.top > g2.bottom);
+
+                    if (isOverlap) {
+                        // 重なっていたら、後ろにあるほう(g2)を移動させる
+                        // 空きスペースを探す
+                        var safePos = searchEmptySpot(g2, groups);
+                        
+                        if (safePos) {
+                            // 移動実行
+                            moveGroup(g2, safePos.x, safePos.y);
+                            movedCount++;
+                        }
+                    }
+                }
+            }
+            // 誰も動かなかったら解決完了
+            if (movedCount === 0) break;
+        }
+    }
+
+    // グループ移動用ヘルパー（座標情報の更新を含む）
+    function moveGroup(group, newX, newY) {
+        var offsetX = newX - group.left;
+        var offsetY = newY - group.top;
+
+        // メンバー全員を移動
+        for (var k = 0; k < group.members.length; k++) {
+            var el = group.members[k];
+            var r = YAHOO.util.Dom.getRegion(el);
+            YAHOO.util.Dom.setX(el, r.left + offsetX);
+            YAHOO.util.Dom.setY(el, r.top + offsetY);
+        }
+        // 計算用データも更新（これをしないと次のループで誤判定する）
+        var w = group.right - group.left;
+        var h = group.bottom - group.top;
+        group.left = newX;
+        group.top = newY;
+        group.right = newX + w;
+        group.bottom = newY + h;
+    }
+    // ======================= ▲▲▲ 追加ここまで ▲▲▲ =======================
 
     // 解答欄にある単語をY座標でグルーピングする関数
     // 解答欄にある単語をY座標でグルーピングする関数
@@ -2223,6 +2272,59 @@ $stmt->close();
     function draw3() {
         BPen2.clear();
     }
+
+    // ======================= ▼▼▼ 追加：汎用グループ化関数 ▼▼▼ =======================
+    // 任意の単語リストからグループ構造を生成する（getAnswerGroupsの汎用版）
+    function getGroupsFromList(labelList) {
+        var groups = [];
+        var thresholdY = 15;
+        var thresholdX = 20;
+
+        // 1. Y座標によるクラスタリング
+        var yClusters = [];
+        for (var i = 0; i < labelList.length; i++) {
+            var label = labelList[i];
+            var region = YAHOO.util.Dom.getRegion(label);
+            var added = false;
+            for (var j = 0; j < yClusters.length; j++) {
+                if (Math.abs(yClusters[j].baseY - region.top) < thresholdY) {
+                    yClusters[j].members.push(label);
+                    added = true;
+                    break;
+                }
+            }
+            if (!added) yClusters.push({
+                baseY: region.top,
+                members: [label]
+            });
+        }
+
+        // 2. X座標による分割とグループオブジェクト生成
+        for (var k = 0; k < yClusters.length; k++) {
+            var cluster = yClusters[k];
+            cluster.members.sort(function(a, b) {
+                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+            });
+
+            var currentSubGroup = [cluster.members[0]];
+            for (var i = 1; i < cluster.members.length; i++) {
+                var prev = cluster.members[i - 1];
+                var curr = cluster.members[i];
+                var prevR = YAHOO.util.Dom.getRegion(prev);
+                var currR = YAHOO.util.Dom.getRegion(curr);
+
+                if (currR.left - prevR.right > thresholdX) {
+                    groups.push(createGroupObject(currentSubGroup));
+                    currentSubGroup = [curr];
+                } else {
+                    currentSubGroup.push(curr);
+                }
+            }
+            if (currentSubGroup.length > 0) groups.push(createGroupObject(currentSubGroup));
+        }
+        return groups;
+    }
+    // ======================= ▲▲▲ 追加ここまで ▲▲▲ =======================
 
     //○○終了ボタン主に一時ファイルの書き込み処理
     function LineQuestioneForm_Closing() {
