@@ -1563,7 +1563,7 @@ $stmt->close();
         // グループ化されている場合、ドラッグ開始時点で横一列に整列させるための相対位置を計算する
         if (MyControls.length > 0) {
             GroupOffsets = [];
-            
+
             // 1. 現在のX座標順（左にある順）にソートする
             MyControls.sort(function(a, b) {
                 return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
@@ -1571,8 +1571,8 @@ $stmt->close();
 
             // 2. ドラッグの基準となる単語（マウスで掴んだ単語）が、ソート後の配列のどこにいるか特定する
             var senderIndex = -1;
-            for(var i = 0; i < MyControls.length; i++) {
-                if(MyControls[i].id === sender.id) {
+            for (var i = 0; i < MyControls.length; i++) {
+                if (MyControls[i].id === sender.id) {
                     senderIndex = i;
                     break;
                 }
@@ -1584,7 +1584,7 @@ $stmt->close();
             var padding = 17; // 単語間の隙間
 
             // 先頭を0とした場合の各単語のX位置を算出
-            for(var i = 0; i < MyControls.length; i++) {
+            for (var i = 0; i < MyControls.length; i++) {
                 tempX.push(currentX);
                 var r = YAHOO.util.Dom.getRegion(MyControls[i]);
                 // 次の単語のために、現在の幅 + 隙間 を加算
@@ -1599,16 +1599,16 @@ $stmt->close();
             for (var i = 0; i < MyControls.length; i++) {
                 // 新しいオフセットを保存 (Yは0にして横並びにする)
                 var offsetX = tempX[i] - baseOffset;
-                
+
                 GroupOffsets.push({
                     x: offsetX,
-                    y: 0 
+                    y: 0
                 });
 
                 // ★重要: ドラッグ開始直後に見た目も即座に整列させる
                 if (MyControls[i].id !== sender.id) {
-                     YAHOO.util.Dom.setX(MyControls[i], senderRegion.left + offsetX);
-                     YAHOO.util.Dom.setY(MyControls[i], senderRegion.top); // Y座標をsenderに合わせる
+                    YAHOO.util.Dom.setX(MyControls[i], senderRegion.left + offsetX);
+                    YAHOO.util.Dom.setY(MyControls[i], senderRegion.top); // Y座標をsenderに合わせる
                 }
             }
         }
@@ -1912,13 +1912,14 @@ $stmt->close();
         // ▲▲▲ 同期処理ここまで ▲▲▲
 
         MyControls = [];
+        updateAnswerPreview();
     }
 
     // 衝突解決のメイン関数
     function resolveCollisions() {
         // 現在の全グループを取得（この時点では重なっている可能性がある）
         var groups = getAnswerGroups(20, false);
-        
+
         // 処理の優先順位を決める（左上のものほど動かさない、右下のものほど動かす）
         groups.sort(function(a, b) {
             if (Math.abs(a.top - b.top) > 20) return a.top - b.top;
@@ -1936,16 +1937,16 @@ $stmt->close();
                     var g2 = groups[j];
 
                     // 単純な重なり判定（接触しているか）
-                    var isOverlap = !(g1.right < g2.left || 
-                                      g1.left > g2.right || 
-                                      g1.bottom < g2.top || 
-                                      g1.top > g2.bottom);
+                    var isOverlap = !(g1.right < g2.left ||
+                        g1.left > g2.right ||
+                        g1.bottom < g2.top ||
+                        g1.top > g2.bottom);
 
                     if (isOverlap) {
                         // 重なっていたら、後ろにあるほう(g2)を移動させる
                         // 空きスペースを探す
                         var safePos = searchEmptySpot(g2, groups);
-                        
+
                         if (safePos) {
                             // 移動実行
                             moveGroup(g2, safePos.x, safePos.y);
@@ -2087,6 +2088,37 @@ $stmt->close();
             }
         }
         return sortedList;
+    }
+    // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
+
+    // ======================= ▼▼▼ 修正：プレビュー更新関数 ▼▼▼ =======================
+    function updateAnswerPreview() {
+        var previewBox = document.getElementById("AnswerPreview");
+        if (!previewBox) return;
+
+        // 1. ソートされた単語リストを取得
+        var sorted = getSortedAnswerLabels();
+        
+        // 2. 単語の配列を作成
+        var words = [];
+        for (var i = 0; i < sorted.length; i++) {
+            if (sorted[i].innerHTML == "/") continue;
+            words.push(sorted[i].innerHTML);
+        }
+
+        // 3. 英語の場合は文頭を大文字化（配列の最初の要素を操作）
+        if (testLangType !== 'ja' && words.length > 0) {
+            words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+        }
+
+        // 4. HTML生成（単語ごとにspanで囲み、余白を設定）
+        var html = "";
+        for (var i = 0; i < words.length; i++) {
+            // ★ここでの margin-right の数値を変えれば間隔を調整できます
+            html += '<span style="display:inline-block; margin-right: 15px;">' + words[i] + '</span>';
+        }
+
+        previewBox.innerHTML = html;
     }
     // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
 
@@ -2438,6 +2470,8 @@ $stmt->close();
             }
         }
 
+        YAHOO.util.Dom.setStyle("AnswerPreview", "display", "none");
+
         BPen3.clear();
         YAHOO.util.Dom.setStyle("Button1", "display", "none");
         document.getElementById("Button1").disabled = true;
@@ -2623,6 +2657,13 @@ $stmt->close();
     function Button2_Click() {
         var answerBox = document.getElementById('answer');
         jQuery(answerBox).empty();
+        // ▼▼▼ 追加：プレビュー欄をクリアして再表示 ▼▼▼
+        var previewBox = document.getElementById("AnswerPreview");
+        if(previewBox) {
+            previewBox.innerHTML = "";
+            YAHOO.util.Dom.setStyle("AnswerPreview", "display", "block");
+        }
+        // ▲▲▲ 追加ここまで ▲▲▲
 
         if (OID == nEnd) {
             alert(<?= json_encode(translate('ques.php_996行目_終了です')) ?>);
@@ -2730,6 +2771,14 @@ $stmt->close();
         document.getElementById("Button3").disabled = true;
         YAHOO.util.Dom.setStyle("Button3", "display", "none");
         YAHOO.util.Dom.setStyle("Button1", "display", "block");
+
+        // ▼▼▼ 追加：プレビュー欄を再表示 ▼▼▼
+        var previewBox = document.getElementById("AnswerPreview");
+        if(previewBox) {
+            previewBox.innerHTML = "";
+            YAHOO.util.Dom.setStyle("AnswerPreview", "display", "block");
+        }
+        // ▲▲▲ 追加ここまで ▲▲▲
         setques();
 
     }
@@ -3560,6 +3609,9 @@ $stmt->close();
 
     <div id="answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
     left:12;top:160;width:800;height:380px;font-size:12;"></div>
+
+    <div id="AnswerPreview" style="padding: 10px; border: 2px solid #888888; background-color: #eeeeee; position:absolute; left:12px; top:580px; width:800px; height:30px; font-size:18px; color: #333333; line-height: 30px; overflow: hidden; white-space: nowrap;">
+    </div>
 
     <div style="position:absolute;left:12;top:70">
         <font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font>
