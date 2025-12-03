@@ -787,7 +787,7 @@ $stmt->close();
     //問題の出題関数ここまで-------------------------------------------------------
     //範囲指定をするときのドラッグ開始処理------------------------------
     function Form1_MouseDown() {
-        if (event.y <= 150) { // 問題提示欄の境界を少し調整
+        if (event.y <= 160) { // 問題提示欄の境界を少し調整
             d_flag = 0;
         } else if (event.y <= 550 && event.y > 160) { // 解答欄
             d_flag = 4;
@@ -849,7 +849,13 @@ $stmt->close();
         //左上,右上,左下,右下の４方向からのドラッグに対応------------------------------------------
         for (i = 0; i <= g_array.length; i++) {
             //一時退避・・・なくて良い
+            // ★追加: データが空(undefined)ならスキップする
+            if (!g_array[i]) continue;
+
             MLi = YAHOO.util.Dom.getRegion(g_array[i]);
+            
+            // 念のため領域が取得できなければスキップ
+            if (!MLi) continue;
             if (sPos.x <= ePos.x && sPos.y <= ePos.y) { //左上
                 if ((sPos.x < MLi.right && sPos.y < MLi.bottom) && (ePos.x > MLi.left && ePos.y > MLi.top)) {
                     MyControls.push(g_array[i]);
@@ -969,8 +975,8 @@ $stmt->close();
             }
         } */
         if (d_flag == 0) { //問題提示欄をドラッグ中
-            if (ePos.y >= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
-                ePos.y = 150;
+            if (ePos.y >= 160) { 
+                ePos.y = 160;
             }
         } else { //その他
             //最終解答欄だった場合
@@ -1035,7 +1041,13 @@ $stmt->close();
             //一時退避
             //退避ラベルならスキップ・・・必要なし
             //範囲選択をすべて抱合⇒一部抱合に変更
+            // ★追加: データが空(undefined)ならスキップする
+            if (!g_array[i]) continue;
+
             MLi = YAHOO.util.Dom.getRegion(g_array[i]);
+            
+            // 念のため領域が取得できなければスキップ
+            if (!MLi) continue;
             if (sPos.x <= ePos.x && sPos.y <= ePos.y) { //左上---------------------------
                 if ((sPos.x < MLi.right && sPos.y < MLi.bottom) && (ePos.x > MLi.left && ePos.y > MLi.top)) {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "red");
@@ -1914,9 +1926,100 @@ $stmt->close();
         var hl = YAHOO.util.Dom.getRegion(hLabel);
         P.x = hl.left;
         P.y = hl.top;
+
+        // ======================= ▼▼▼ 1. バックアップ作成 ▼▼▼ =======================
+        var backup_Mylabels_ea = Mylabels_ea.slice(0);
+        var backup_positions = [];
+        var movingIds = [];
+        
+        if (typeof MyControls !== 'undefined' && MyControls.length > 0) {
+            for (var m = 0; m < MyControls.length; m++) movingIds.push(MyControls[m].id);
+        } else {
+            movingIds.push(sender.id);
+        }
+
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            if (Mylabels_ea[i] && movingIds.indexOf(Mylabels_ea[i].id) === -1) {
+                var r = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
+                if (r) {
+                    backup_positions.push({ el: Mylabels_ea[i], x: r.left, y: r.top });
+                }
+            }
+        }
+        // ======================= ▲▲▲ バックアップ完了 ▲▲▲ =======================
         mylabelarray2 = MyLabelSort(sender, event.x, event.y);
 
+        // ======================= ▼▼▼ 2. ドロップ場所による分岐処理 (決定版) ▼▼▼ =======================
+        
+        if (array_flag2 == 4) { 
+            // ---------------------------------------------
+            // パターンA: 解答欄の中にドロップした場合
+            // ---------------------------------------------
+            var isOverflow = false;
+            var limitLeft = 12;  // ★追加: 左端の境界線
+            var limitRight = 812;
+
+            // はみ出しチェック
+            for (var i = 0; i < mylabelarray2.length; i++) {
+                if (!mylabelarray2[i]) continue;
+                var r = YAHOO.util.Dom.getRegion(mylabelarray2[i]);
+                
+                // 右にはみ出している OR 左にはみ出している 場合
+                if (r && (r.right > limitRight || r.left < limitLeft)) {
+                    isOverflow = true;
+                    break;
+                }
+            }
+
+            // はみ出し時の復元処理
+            if (isOverflow) {
+                // 1. 解答欄を元に戻す
+                Mylabels_ea = backup_Mylabels_ea.slice(0);
+                mylabelarray2 = Mylabels_ea.slice(0);
+                for (var k = 0; k < backup_positions.length; k++) {
+                    var data = backup_positions[k];
+                    YAHOO.util.Dom.setX(data.el, data.x);
+                    YAHOO.util.Dom.setY(data.el, data.y);
+                }
+                draw_register_lines(null, null, true);
+
+                // 2. 弾かれた単語を問題提示欄(初期位置)に戻す
+                array_flag2 = 0;
+                var q_result = MyLabelSort(sender, DefaultX, DefaultY);
+                Mylabels = q_result.slice(0);
+                
+                BPen.clear(); 
+                BPen2.clear();
+            }
+
+        } else {
+            // ---------------------------------------------
+            // パターンB: 枠外・問題提示欄・変な場所にドロップした場合
+            // ---------------------------------------------
+            // 強制的に「問題提示欄(0)」扱いに固定する
+            array_flag2 = 0;
+
+            // マウス位置(event.x)に関係なく、強制的に初期位置(DefaultX, DefaultY)に戻す処理を走らせる
+            // これにより「中途半端な位置」に置かれるバグを防ぎます
+            var q_result_force = MyLabelSort(sender, DefaultX, DefaultY);
+            Mylabels = q_result_force.slice(0);
+            
+            // 念のため描画クリア
+            BPen.clear();
+            BPen2.clear();
+        }
+        // ======================= ▲▲▲ 処理ここまで ▲▲▲ =======================
+
         DPos = 0;
+
+        // グループ選択状態のクリア
+        if (typeof MyControls !== 'undefined') {
+             for (var c = 0; c < MyControls.length; c++) {
+                 YAHOO.util.Dom.setStyle(MyControls[c], "color", "black");
+                 YAHOO.util.Dom.setStyle(MyControls[c], "background-color", "transparent");
+             }
+        }
+        MyControls = []; 
         IsDragging = false;
 
         // ======================= ▼▼▼ MouseUp (結合・順序判定) 修正版 ▼▼▼ =======================
