@@ -787,7 +787,7 @@ $stmt->close();
     //問題の出題関数ここまで-------------------------------------------------------
     //範囲指定をするときのドラッグ開始処理------------------------------
     function Form1_MouseDown() {
-        if (event.y <= 160) { // 問題提示欄の境界を少し調整
+        if (event.y <= 150) { // 問題提示欄の境界を少し調整
             d_flag = 0;
         } else if (event.y <= 550 && event.y > 160) { // 解答欄
             d_flag = 4;
@@ -849,13 +849,7 @@ $stmt->close();
         //左上,右上,左下,右下の４方向からのドラッグに対応------------------------------------------
         for (i = 0; i <= g_array.length; i++) {
             //一時退避・・・なくて良い
-            // ★追加: データが空(undefined)ならスキップする
-            if (!g_array[i]) continue;
-
             MLi = YAHOO.util.Dom.getRegion(g_array[i]);
-            
-            // 念のため領域が取得できなければスキップ
-            if (!MLi) continue;
             if (sPos.x <= ePos.x && sPos.y <= ePos.y) { //左上
                 if ((sPos.x < MLi.right && sPos.y < MLi.bottom) && (ePos.x > MLi.left && ePos.y > MLi.top)) {
                     MyControls.push(g_array[i]);
@@ -975,8 +969,8 @@ $stmt->close();
             }
         } */
         if (d_flag == 0) { //問題提示欄をドラッグ中
-            if (ePos.y >= 160) { 
-                ePos.y = 160;
+            if (ePos.y >= 150) { // 130 -> 150 (他の判定ロジックと境界を統一)
+                ePos.y = 150;
             }
         } else { //その他
             //最終解答欄だった場合
@@ -1041,13 +1035,7 @@ $stmt->close();
             //一時退避
             //退避ラベルならスキップ・・・必要なし
             //範囲選択をすべて抱合⇒一部抱合に変更
-            // ★追加: データが空(undefined)ならスキップする
-            if (!g_array[i]) continue;
-
             MLi = YAHOO.util.Dom.getRegion(g_array[i]);
-            
-            // 念のため領域が取得できなければスキップ
-            if (!MLi) continue;
             if (sPos.x <= ePos.x && sPos.y <= ePos.y) { //左上---------------------------
                 if ((sPos.x < MLi.right && sPos.y < MLi.bottom) && (ePos.x > MLi.left && ePos.y > MLi.top)) {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "red");
@@ -1743,6 +1731,43 @@ $stmt->close();
                     }
                 }
 
+                // ▼▼▼ 追加：残ったメンバーを詰める処理 (穴埋め) ▼▼▼
+                if (remainingMembers.length > 0) {
+                    // (1) 残ったメンバーを左から右の順序でソート（崩れないように）
+                    remainingMembers.sort(function(a, b) {
+                        return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+                    });
+
+                    // (2) 詰めるための開始位置（元のグループの左端）を取得
+                    var startX = parentGroup.left;
+                    var startY = parentGroup.top;
+                    var padding = 17; // 以前のソートロジックと同じ隙間
+
+                    // (3) 参考プログラムのロジックで詰める
+                    for (var m = 0; m < remainingMembers.length; m++) {
+                        var targetEl = remainingMembers[m];
+                        
+                        // 位置を設定
+                        if (m == 0) {
+                            // 先頭はグループの開始位置へ
+                            YAHOO.util.Dom.setX(targetEl, startX);
+                            YAHOO.util.Dom.setY(targetEl, startY);
+                        } else {
+                            // 2つ目以降は、前の要素の右端 + 17px の位置へ
+                            // 直前の要素の情報を取得（DOM更新直後のため計算で位置を出すのが確実ですが、ここではgetRegionを使用）
+                            var prevEl = remainingMembers[m - 1];
+                            var prevR = YAHOO.util.Dom.getRegion(prevEl);
+                            
+                            // ※注意: setXした直後にgetRegionするとブラウザによっては反映が遅れる場合がありますが、
+                            // 参考ロジックに従い X1.right + 17 の形式を採用します。
+                            // もしズレる場合は、ここを計算値 (currentX += width + padding) に変更してください。
+                            YAHOO.util.Dom.setX(targetEl, prevR.right + padding);
+                            YAHOO.util.Dom.setY(targetEl, startY);
+                        }
+                    }
+                }
+                // ▲▲▲ 追加ここまで ▲▲▲
+
                 // 残ったメンバーがどういう塊になるか再計算
                 if (remainingMembers.length > 0) {
                     var remainingGroups = getGroupsFromList(remainingMembers);
@@ -1926,100 +1951,9 @@ $stmt->close();
         var hl = YAHOO.util.Dom.getRegion(hLabel);
         P.x = hl.left;
         P.y = hl.top;
-
-        // ======================= ▼▼▼ 1. バックアップ作成 ▼▼▼ =======================
-        var backup_Mylabels_ea = Mylabels_ea.slice(0);
-        var backup_positions = [];
-        var movingIds = [];
-        
-        if (typeof MyControls !== 'undefined' && MyControls.length > 0) {
-            for (var m = 0; m < MyControls.length; m++) movingIds.push(MyControls[m].id);
-        } else {
-            movingIds.push(sender.id);
-        }
-
-        for (var i = 0; i < Mylabels_ea.length; i++) {
-            if (Mylabels_ea[i] && movingIds.indexOf(Mylabels_ea[i].id) === -1) {
-                var r = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
-                if (r) {
-                    backup_positions.push({ el: Mylabels_ea[i], x: r.left, y: r.top });
-                }
-            }
-        }
-        // ======================= ▲▲▲ バックアップ完了 ▲▲▲ =======================
         mylabelarray2 = MyLabelSort(sender, event.x, event.y);
 
-        // ======================= ▼▼▼ 2. ドロップ場所による分岐処理 (決定版) ▼▼▼ =======================
-        
-        if (array_flag2 == 4) { 
-            // ---------------------------------------------
-            // パターンA: 解答欄の中にドロップした場合
-            // ---------------------------------------------
-            var isOverflow = false;
-            var limitLeft = 12;  // ★追加: 左端の境界線
-            var limitRight = 812;
-
-            // はみ出しチェック
-            for (var i = 0; i < mylabelarray2.length; i++) {
-                if (!mylabelarray2[i]) continue;
-                var r = YAHOO.util.Dom.getRegion(mylabelarray2[i]);
-                
-                // 右にはみ出している OR 左にはみ出している 場合
-                if (r && (r.right > limitRight || r.left < limitLeft)) {
-                    isOverflow = true;
-                    break;
-                }
-            }
-
-            // はみ出し時の復元処理
-            if (isOverflow) {
-                // 1. 解答欄を元に戻す
-                Mylabels_ea = backup_Mylabels_ea.slice(0);
-                mylabelarray2 = Mylabels_ea.slice(0);
-                for (var k = 0; k < backup_positions.length; k++) {
-                    var data = backup_positions[k];
-                    YAHOO.util.Dom.setX(data.el, data.x);
-                    YAHOO.util.Dom.setY(data.el, data.y);
-                }
-                draw_register_lines(null, null, true);
-
-                // 2. 弾かれた単語を問題提示欄(初期位置)に戻す
-                array_flag2 = 0;
-                var q_result = MyLabelSort(sender, DefaultX, DefaultY);
-                Mylabels = q_result.slice(0);
-                
-                BPen.clear(); 
-                BPen2.clear();
-            }
-
-        } else {
-            // ---------------------------------------------
-            // パターンB: 枠外・問題提示欄・変な場所にドロップした場合
-            // ---------------------------------------------
-            // 強制的に「問題提示欄(0)」扱いに固定する
-            array_flag2 = 0;
-
-            // マウス位置(event.x)に関係なく、強制的に初期位置(DefaultX, DefaultY)に戻す処理を走らせる
-            // これにより「中途半端な位置」に置かれるバグを防ぎます
-            var q_result_force = MyLabelSort(sender, DefaultX, DefaultY);
-            Mylabels = q_result_force.slice(0);
-            
-            // 念のため描画クリア
-            BPen.clear();
-            BPen2.clear();
-        }
-        // ======================= ▲▲▲ 処理ここまで ▲▲▲ =======================
-
         DPos = 0;
-
-        // グループ選択状態のクリア
-        if (typeof MyControls !== 'undefined') {
-             for (var c = 0; c < MyControls.length; c++) {
-                 YAHOO.util.Dom.setStyle(MyControls[c], "color", "black");
-                 YAHOO.util.Dom.setStyle(MyControls[c], "background-color", "transparent");
-             }
-        }
-        MyControls = []; 
         IsDragging = false;
 
         // ======================= ▼▼▼ MouseUp (結合・順序判定) 修正版 ▼▼▼ =======================
