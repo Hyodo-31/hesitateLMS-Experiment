@@ -1745,6 +1745,8 @@ $stmt->close();
             }
         }
 
+        YAHOO.util.Dom.setStyle("AnswerPreview", "display", "none");
+
         BPen3.clear();
         YAHOO.util.Dom.setStyle("Button1", "display", "none");
         document.getElementById("Button1").disabled = true;
