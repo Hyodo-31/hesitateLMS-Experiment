@@ -567,7 +567,7 @@ $stmt->close();
                                         MyLabels_MouseUp(this.getDragEl())
                                     }
                                     dd[i].onDrag = function(e) {
-                                        MyLabels_MouseMove(this.getDragEl())
+                                        MyLabels_MouseMove(this.getDragEl(), e)
                                     }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseout', MyLabels_MouseLeave);
@@ -1535,10 +1535,20 @@ $stmt->close();
 
     }
     //★★マウスでラベルをドラッグ中。動かしてるときだからここで挿入線をアレしたりコレしたり
-    function MyLabels_MouseMove(sender) {
+    function MyLabels_MouseMove(sender, e) {
         if (IsDragging != true) {
             return;
         }
+        // ▼▼▼ 座標取得処理を追加 ▼▼▼
+        var ey = 0;
+        if (e) {
+            // YUIイベント、または標準イベントからページY座標を取得
+            ey = (typeof e.pageY !== 'undefined') ? e.pageY : e.clientY;
+        } else if (typeof event !== 'undefined') {
+            // IEなどの古い仕様へのフォールバック
+            ey = event.y;
+        }
+
         var hLabel = sender;
 
         //グループ化ラベルを動かすときの処理。何故動いているか不明。
@@ -1585,28 +1595,26 @@ $stmt->close();
         var lstart_y = 0;
         //枠の色リセット
         document.getElementById("question").style.borderColor = "black";
-        document.getElementById("register1").style.borderColor = "black";
-        document.getElementById("register2").style.borderColor = "black";
-        document.getElementById("register3").style.borderColor = "black";
         document.getElementById("answer").style.borderColor = "black";
         //挿入線関係。まずy座標でどこに挿入線を引くか判定
-        if (event.y < 160) {
+        // ▼▼▼ event.y を ey に書き換え ▼▼▼
+        if (ey < 160) {
             line_flag = 0;
-        } else if (event.y <= 550 && event.y >= 160) {
+        } else if (ey <= 550 && ey >= 160) {
             line_flag = 4;
         } else {
             line_flag = -1;
         }
         if (line_flag == 0) {
+            document.getElementById("question").style.borderColor = "red";
             line_array = Mylabels.slice(0);
             lstart_x = DefaultX;
             lstart_y = DefaultY;
-            document.getElementById("question").style.borderColor = "red";
         } else if (line_flag == 4) {
+            document.getElementById("answer").style.borderColor = "red";
             line_array = Mylabels_ea.slice(0);
             lstart_x = DefaultX_ea;
             lstart_y = DefaultY_ea;
-            document.getElementById("answer").style.borderColor = "red";
         }
         // ▼ 1. ループの外で一度だけ取得する（最適化）
         var send;
