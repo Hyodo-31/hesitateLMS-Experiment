@@ -318,6 +318,10 @@ $stmt->close();
         BPen2.setColor("black");
         //スラッシュ入れる用
         BPen3 = new jsGraphics("myCanvas2");
+
+        BPenGroup = new jsGraphics("myCanvas");
+        BPenGroup.setColor("blue"); // 下線の色（青）
+        BPenGroup.setStroke(2); // 下線の太さ
         document.onmousemove = Form1_MouseMove;
         document.onselectstart = "return false";
         //-------------------------------------------------------------
@@ -705,6 +709,9 @@ $stmt->close();
         ePos.x = event.x + cx;
         ePos.y = event.y + cy;
         MV = true;
+
+        // ▼▼▼ 追加: ドラッグ開始時に下線をリフレッシュ（一時的に消すなど）
+        if (typeof BPenGroup !== 'undefined') BPenGroup.clear();
     }
     //------------------------------------------------------------------
     //マウスアップ関数ここから(範囲選択を確定（ラベルをグループ化))---------------------------------------------------
@@ -1434,10 +1441,129 @@ $stmt->close();
             Mylabels = mylabelarray.slice(0);
         } else if (array_flag == 4) {
             Mylabels_ea = mylabelarray.slice(0);
+            drawGroupUnderlines();
             // ★ドラッグ開始で単語が抜けたのでプレビューを更新
             updateAnswerPreview();
         }
     }
+
+    // ======================= ▼▼▼ 新規追加関数 ▼▼▼ =======================
+
+    // 機能A: 近くの単語に吸着させる関数
+    function snapToNearestWord(droppedLabel) {
+        var labels = Mylabels_ea; // 解答欄にある単語リスト
+        var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
+        var snapDistanceY = 30; // Y座標の吸着しきい値(px)
+        var snapDistanceX = 20; // X座標の吸着しきい値(px)
+
+        var nearestLabel = null;
+        var minDiff = 99999;
+
+        for (var i = 0; i < labels.length; i++) {
+            var target = labels[i];
+            if (target.id === droppedLabel.id) continue; // 自分自身は無視
+
+            var targetRegion = YAHOO.util.Dom.getRegion(target);
+
+            // Y座標の差（絶対値）を確認
+            var diffY = Math.abs(droppedRegion.top - targetRegion.top);
+
+            if (diffY < snapDistanceY) {
+                // Yが近い場合、X方向の距離を確認
+                // 左側にくっつくか、右側にくっつくか
+                var distToRight = Math.abs(droppedRegion.left - targetRegion.right);
+                var distToLeft = Math.abs(droppedRegion.right - targetRegion.left);
+
+                // 最も近い距離を採用
+                var closestXDist = Math.min(distToRight, distToLeft);
+
+                if (closestXDist < 50 && closestXDist < minDiff) { // 50px以内なら吸着候補
+                    minDiff = closestXDist;
+                    nearestLabel = target;
+                }
+            }
+        }
+
+        // 吸着対象が見つかった場合、座標を更新
+        if (nearestLabel) {
+            var targetRegion = YAHOO.util.Dom.getRegion(nearestLabel);
+            var gap = 15; // ★修正: 間隔を5pxから15pxに広げました
+
+            // Y座標をターゲットに合わせる（これで横並びになる）
+            YAHOO.util.Dom.setY(droppedLabel, targetRegion.top);
+
+            // X座標の調整（重ならないように配置）
+            if (droppedRegion.left < targetRegion.left) {
+                // ターゲットの左側に配置
+                YAHOO.util.Dom.setX(droppedLabel, targetRegion.left - (droppedRegion.right - droppedRegion.left) - gap);
+            } else {
+                // ターゲットの右側に配置
+                YAHOO.util.Dom.setX(droppedLabel, targetRegion.right + gap);
+            }
+        }
+    }
+
+    // 機能B: グループ化された単語に下線を引く関数
+    function drawGroupUnderlines() {
+        BPenGroup.clear(); // 前回の線を消去
+
+        if (Mylabels_ea.length === 0) return;
+
+        // 1. 解答欄の単語を [Y座標, X座標] の順でソート
+        var sorted = Mylabels_ea.slice(0).sort(function(a, b) {
+            var rA = YAHOO.util.Dom.getRegion(a);
+            var rB = YAHOO.util.Dom.getRegion(b);
+            if (Math.abs(rA.top - rB.top) > 10) { // Y座標が10px以上違えば別の行とみなす
+                return rA.top - rB.top;
+            } else {
+                return rA.left - rB.left;
+            }
+        });
+
+        // 2. グループ（塊）を検出して線を引く
+        var currentGroup = [];
+        var groupGapLimit = 50; // X方向の隙間がこれ以上空いたら別グループとする
+
+        for (var i = 0; i < sorted.length; i++) {
+            var label = sorted[i];
+            var region = YAHOO.util.Dom.getRegion(label);
+
+            if (currentGroup.length === 0) {
+                currentGroup.push(region);
+            } else {
+                var prevRegion = currentGroup[currentGroup.length - 1];
+
+                // Y座標がほぼ同じ かつ X方向の隙間が狭い場合、同じグループ
+                var isSameLine = Math.abs(region.top - prevRegion.top) < 10;
+                var isCloseEnough = (region.left - prevRegion.right) < groupGapLimit;
+
+                if (isSameLine && isCloseEnough) {
+                    currentGroup.push(region);
+                } else {
+                    // グループが途切れたので、前のグループの下線を描画
+                    if (currentGroup.length >= 2) { // 2単語以上の場合のみ線を引く
+                        drawLineForGroup(currentGroup);
+                    }
+                    currentGroup = [region]; // 新しいグループ開始
+                }
+            }
+        }
+        // 最後のグループの処理
+        if (currentGroup.length >= 2) {
+            drawLineForGroup(currentGroup);
+        }
+    }
+
+    // 実際に線を引く補助関数
+    function drawLineForGroup(regions) {
+        var startX = regions[0].left;
+        var endX = regions[regions.length - 1].right;
+        var y = regions[0].bottom - 2; // 文字の下端から少し上に線を引く
+
+        BPenGroup.drawLine(startX, y, endX, y);
+        BPenGroup.paint();
+    }
+    // ======================= ▲▲▲ 新規追加ここまで ▲▲▲ =======================
 
     //★★ラベルを離した時の作業。問題文の形を変えたりいろいろ
     function MyLabels_MouseUp(sender) {
@@ -1460,6 +1586,22 @@ $stmt->close();
             mylabelarray2 = Mylabels.slice(0);
         } else if (array_flag2 == 4) {
             mylabelarray2 = Mylabels_ea.slice(0);
+            // ▼▼▼ 追加: 吸着と下線描画処理 ▼▼▼
+
+            // 1. 単語が解答欄にドロップされた場合、近くの単語に吸着させる
+            snapToNearestWord(sender);
+
+            // 2. 吸着後の位置情報を反映させるために配列情報を更新などは不要（DOM操作済みのため）
+            // ただし、もしグループドラッグ(MyControls)があった場合は、それら全てに対して吸着判定を行う必要があります。
+            // 今回はシンプルに sender (ドラッグした要素) に対して行います。
+
+            // 3. グループ下線を再描画
+            drawGroupUnderlines();
+
+            // ▲▲▲ 追加ここまで ▲▲▲
+
+            // ★ここでプレビューを更新！
+            updateAnswerPreview();
         } else {
             IsDragging = false;
         }
@@ -1529,7 +1671,13 @@ $stmt->close();
             Mylabels = mylabelarray2.slice(0);
         } else if (array_flag2 == 4) {
             Mylabels_ea = mylabelarray2.slice(0);
-            // ★ここでプレビューを更新！
+            // 1. 吸着処理（ドロップした瞬間に位置を補正）
+            snapToNearestWord(sender);
+
+            // 2. 下線描画（位置補正の直後に必ず実行）
+            drawGroupUnderlines();
+
+            // 3. プレビュー更新
             updateAnswerPreview();
         }
 
