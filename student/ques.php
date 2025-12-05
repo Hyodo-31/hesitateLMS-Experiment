@@ -322,6 +322,9 @@ $stmt->close();
         BPenGroup = new jsGraphics("myCanvas");
         BPenGroup.setColor("blue"); // 下線の色（青）
         BPenGroup.setStroke(2); // 下線の太さ
+        BPenTarget = new jsGraphics("myCanvas");
+        BPenTarget.setColor("red"); // 枠の色
+        BPenTarget.setStroke(3); // 枠の太さ（少し太めに強調）
         document.onmousemove = Form1_MouseMove;
         document.onselectstart = "return false";
         //-------------------------------------------------------------
@@ -909,291 +912,163 @@ $stmt->close();
         var mylabelarray3 = new Array();
         var X_p = 0;
         var Y_p = 0;
+        // --- A. 問題提示欄へ戻す処理（初期位置への強制送還） ---
         if (array_flag2 == 0) {
+            // ドラッグ中の対象（単体またはグループ）
+            var targetLabels = (MyControls.length > 0) ? MyControls : [sender];
+
+            // 現在のMylabels配列をコピー
             mylabelarray3 = Mylabels.slice(0);
-            X_p = DefaultX;
-            Y_p = DefaultY;
-        } else if (array_flag2 == 4) { // 解答欄にドロップされた場合
-            var answerRegion = YAHOO.util.Dom.getRegion('answer');
-            var isGroupMove = MyControls.length > 0;
 
-            // ▼▼▼ ここからが新しいアルゴリズムです ▼▼▼
+            // 戻す対象をループ処理
+            for (var k = 0; k < targetLabels.length; k++) {
+                var tLabel = targetLabels[k];
+                var originalIndex = -1;
 
-            var finalPositions = []; // 各単語の最終位置を格納する配列
-
-            if (isGroupMove) {
-                // --- グループ移動の処理 ---
-                var groupBounds = {
-                    left: Infinity,
-                    top: Infinity,
-                    right: -Infinity,
-                    bottom: -Infinity
-                };
-                var relativePositions = [];
-
-                // 1. グループ全体の境界と、各単語の相対位置を計算
-                for (var i = 0; i < MyControls.length; i++) {
-                    var region = YAHOO.util.Dom.getRegion(MyControls[i]);
-                    groupBounds.left = Math.min(groupBounds.left, region.left);
-                    groupBounds.top = Math.min(groupBounds.top, region.top);
-                    groupBounds.right = Math.max(groupBounds.right, region.right);
-                    groupBounds.bottom = Math.max(groupBounds.bottom, region.bottom);
-                }
-                for (var i = 0; i < MyControls.length; i++) {
-                    var region = YAHOO.util.Dom.getRegion(MyControls[i]);
-                    relativePositions.push({
-                        label: MyControls[i],
-                        relX: region.left - groupBounds.left,
-                        relY: region.top - groupBounds.top
-                    });
-                }
-
-                var groupWidth = groupBounds.right - groupBounds.left;
-                var groupHeight = groupBounds.bottom - groupBounds.top;
-
-                // 2. グループ全体を一つの塊と見なして、最も近い空き場所を探す
-                var finalX = groupBounds.left;
-                var finalY = groupBounds.top;
-
-                // （単独移動のロジックをグループ用に再利用）
-                var positionFound = false;
-                var radius = 5,
-                    angle = 0,
-                    maxRadius = 200;
-
-                while (!positionFound && radius < maxRadius) {
-                    var checkX = groupBounds.left + Math.cos(angle) * radius;
-                    var checkY = groupBounds.top + Math.sin(angle) * radius;
-                    var virtualRegion = {
-                        top: checkY,
-                        left: checkX,
-                        bottom: checkY + groupHeight,
-                        right: checkX + groupWidth
-                    };
-
-                    if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
-                        virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
-
-                        var overlaps = false;
-                        for (var i = 0; i < Mylabels_ea.length; i++) {
-                            var existingLabel = Mylabels_ea[i];
-                            if (!existingLabel || MyControls.indexOf(existingLabel) !== -1) continue; // 自分自身とは比較しない
-                            var existingRegion = YAHOO.util.Dom.getRegion(existingLabel);
-                            if (!(virtualRegion.right < existingRegion.left || virtualRegion.left > existingRegion.right ||
-                                    virtualRegion.bottom < existingRegion.top || virtualRegion.top > existingRegion.bottom)) {
-                                overlaps = true;
-                                break;
-                            }
-                        }
-                        if (!overlaps) {
-                            positionFound = true;
-                            finalX = checkX;
-                            finalY = checkY;
-                        }
-                    }
-                    angle += 0.5;
-                    if (angle > Math.PI * 2) {
-                        angle = 0;
-                        radius += 5;
-                    }
-                }
-
-                // 3. 全員の最終位置を計算
-                for (var i = 0; i < relativePositions.length; i++) {
-                    finalPositions.push({
-                        label: relativePositions[i].label,
-                        x: finalX + relativePositions[i].relX,
-                        y: finalY + relativePositions[i].relY
-                    });
-                }
-
-            } else {
-                // --- 単独移動の処理 ---
-                var droppedLabel = sender;
-                var droppedRegion = YAHOO.util.Dom.getRegion(droppedLabel);
-                var droppedWidth = droppedRegion.right - droppedRegion.left;
-                var droppedHeight = droppedRegion.bottom - droppedRegion.top;
-                var finalX = droppedRegion.left,
-                    finalY = droppedRegion.top;
-
-                var initialOverlap = false;
-                for (var i = 0; i < Mylabels_ea.length; i++) {
-                    if (!Mylabels_ea[i]) continue;
-                    var existingRegion = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
-                    if (!(droppedRegion.right < existingRegion.left || droppedRegion.left > existingRegion.right ||
-                            droppedRegion.bottom < existingRegion.top || droppedRegion.top > existingRegion.bottom)) {
-                        initialOverlap = true;
+                // 初期配列(Mylabels2)から本来のインデックスを探す
+                for (var i = 0; i < Mylabels2.length; i++) {
+                    if (Mylabels2[i].id == tLabel.id) {
+                        originalIndex = i;
                         break;
                     }
                 }
 
-                if (initialOverlap) {
-                    var positionFound = false;
-                    var radius = 5,
-                        angle = 0,
-                        maxRadius = 200;
-                    while (!positionFound && radius < maxRadius) {
-                        var checkX = droppedRegion.left + Math.cos(angle) * radius;
-                        var checkY = droppedRegion.top + Math.sin(angle) * radius;
-                        var virtualRegion = {
-                            top: checkY,
-                            left: checkX,
-                            bottom: checkY + droppedHeight,
-                            right: checkX + droppedWidth
-                        };
+                if (originalIndex != -1) {
+                    // 配列の正しい位置に戻す（splice等で穴埋めするより、ID管理で戻す）
+                    // ※簡易的に末尾に追加し、座標だけ正しく戻すアプローチをとります
+                    // もし厳密なインデックス順序が必要な場合はsplice調整が必要ですが、
+                    // ここでは「見た目が元の場所に戻る」ことを優先します。
 
-                        if (virtualRegion.top >= answerRegion.top && virtualRegion.left >= answerRegion.left &&
-                            virtualRegion.bottom <= answerRegion.bottom && virtualRegion.right <= answerRegion.right) {
-                            var overlaps = false;
-                            for (var i = 0; i < Mylabels_ea.length; i++) {
-                                if (!Mylabels_ea[i]) continue;
-                                var existingRegion = YAHOO.util.Dom.getRegion(Mylabels_ea[i]);
-                                if (!(virtualRegion.right < existingRegion.left || virtualRegion.left > existingRegion.right ||
-                                        virtualRegion.bottom < existingRegion.top || virtualRegion.top > existingRegion.bottom)) {
-                                    overlaps = true;
-                                    break;
-                                }
-                            }
-                            if (!overlaps) {
-                                positionFound = true;
-                                finalX = checkX;
-                                finalY = checkY;
-                            }
-                        }
-                        angle += 0.5;
-                        if (angle > Math.PI * 2) {
-                            angle = 0;
-                            radius += 5;
-                        }
+                    if (mylabelarray3.indexOf(tLabel) === -1) {
+                        mylabelarray3.push(tLabel);
                     }
-                }
-                finalPositions.push({
-                    label: droppedLabel,
-                    x: finalX,
-                    y: finalY
-                });
-            }
 
-            // 4. 計算した最終位置を、全単語に適用
-            for (var i = 0; i < finalPositions.length; i++) {
-                YAHOO.util.Dom.setXY(finalPositions[i].label, [finalPositions[i].x, finalPositions[i].y]);
-            }
+                    // ★重要: 座標を初期ロード時の位置(Mylabels_left)に強制リセット
+                    YAHOO.util.Dom.setX(tLabel, Mylabels_left[originalIndex]);
+                    YAHOO.util.Dom.setY(tLabel, DefaultY);
 
-            // ▲▲▲ 新しいアルゴリズムはここまで ▲▲▲
-
-            mylabelarray3 = Mylabels_ea.slice(0);
-            var labelsToAdd = isGroupMove ? MyControls : [sender];
-            for (var k = 0; k < labelsToAdd.length; k++) {
-                var exists = mylabelarray3.some(function(label) {
-                    return label.id === labelsToAdd[k].id;
-                });
-                if (!exists) {
-                    mylabelarray3.push(labelsToAdd[k]);
+                    // 枠線やスタイルをリセット
+                    YAHOO.util.Dom.setStyle(tLabel, "color", "black");
                 }
             }
-            Mylabels_ea = mylabelarray3.slice(0);
+
+            Mylabels = mylabelarray3.slice(0);
             return mylabelarray3;
         }
 
-        // ... (関数の残りの部分は変更ありません) ...
-        var i;
-        var j;
-        var k;
+        // --- B. 解答欄での処理（修正箇所） ---
+        else if (array_flag2 == 4) {
 
-        var hLabel;
-        hLabel = sender;
-        var aNum = new Array();
-        var aCount = 0;
-        for (i = 0; i <= mylabelarray3.length - 1; i++) {
-            aNum.push(i);
-            aCount++;
-        }
-        var iLabel = new Array();
-        var item = MyControls.indexOf(hLabel);
+            var dragTargets = (MyControls.length > 0) ? MyControls : [sender];
 
-        if (MyControls.length > 0) {
-            if (array_flag2 == 0) {
-                for (j = 0; j < MyControls.length; j++) {
-                    for (i = 0; i < Mylabels2.length; i++) {
-                        if (Mylabels2[i].id == MyControls[j].id) {
-                            break;
+            // 1. 判定関数で場所を決める
+            var info = getTargetInfo(ex, ey, dragTargets);
+            var allLabels = []; // 最終的な全単語リスト
+
+            if (info.mode === "insert") {
+                // --- 挿入モード（隙間を空けて入れる） ---
+
+                var staticLabels = info.targets; // ソート済みの静的単語
+                var insertIdx = info.index;
+
+                // 2. 配列を結合: [前半] + [ドラッグ群] + [後半]
+                // これにより、グループの順番(dragTargets)は絶対に守られます
+                for (var i = 0; i < insertIdx; i++) allLabels.push(staticLabels[i]);
+                for (var i = 0; i < dragTargets.length; i++) allLabels.push(dragTargets[i]);
+                for (var i = insertIdx; i < staticLabels.length; i++) allLabels.push(staticLabels[i]);
+
+                // 他の行（高さが違う）にある単語も忘れずに allLabels に含める必要がある
+                // info.targets は「近くの行」だけなので、それ以外の単語を拾う
+                var nearbyIds = {};
+                for (var i = 0; i < staticLabels.length; i++) nearbyIds[staticLabels[i].id] = true;
+
+                // 範囲外の単語を末尾（あるいはそのまま）に追加
+                // ※今回は簡易的に末尾に追加せず、allLabelsをメインとして、
+                // 残りは座標変更しないものとして扱う
+
+                // 3. 座標の適用（リレイアウト）
+                // 挿入点より前の単語の右端を取得
+                var currentX = 0;
+                var gap = 15;
+
+                if (insertIdx === 0) {
+                    // 先頭への挿入：現在の先頭の左端を使う、あるいは info.lineX
+                    currentX = info.lineX;
+                    if (staticLabels.length > 0) {
+                        var firstR = YAHOO.util.Dom.getRegion(staticLabels[0]);
+                        // もし線が左端よりさらに左なら、そこを基準に
+                        if (info.lineX < firstR.left) currentX = info.lineX;
+                        else currentX = firstR.left; // 基本は今の先頭に合わせる
+                    }
+                } else {
+                    // 中間/末尾：前の単語の右端 + gap
+                    var prevR = YAHOO.util.Dom.getRegion(staticLabels[insertIdx - 1]);
+                    currentX = prevR.right + gap;
+                }
+
+                // [ドラッグ群] + [後半] の座標を更新して右へずらす
+                // ※前半(0～insertIdx-1)は動かさなくて良い
+                for (var i = insertIdx; i < allLabels.length; i++) { // insertIdx番目(ドラッグ先頭)から開始
+                    var el = allLabels[i];
+                    var r = YAHOO.util.Dom.getRegion(el);
+                    var w = r.right - r.left;
+
+                    YAHOO.util.Dom.setX(el, currentX);
+                    YAHOO.util.Dom.setY(el, info.refY); // Y座標を揃える
+
+                    currentX += w + gap;
+                }
+
+                // Mylabels_ea の更新（allLabelsに入っていない、遠くの単語も結合して保存）
+                var finalArray = allLabels.slice(0);
+                for (var i = 0; i < Mylabels_ea.length; i++) {
+                    var label = Mylabels_ea[i];
+                    if (!label) continue;
+                    // allLabelsに含まれておらず、かつドラッグ対象でもないものを探す
+                    var exists = false;
+                    for (var k = 0; k < finalArray.length; k++) {
+                        if (finalArray[k].id == label.id) exists = true;
+                    }
+
+                    if (!exists) {
+                        // ドラッグ対象か？
+                        var isDrag = false;
+                        for (var d = 0; d < dragTargets.length; d++) {
+                            if (dragTargets[d].id == label.id) isDrag = true;
                         }
-                    }
-                    mylabelarray3.splice(i, 1, MyControls[j]);
-                    Mylabels = mylabelarray3.slice(0);
-                    YAHOO.util.Dom.setX(Mylabels[i], Mylabels_left[i]);
-                    YAHOO.util.Dom.setY(Mylabels[i], 100);
-                }
-                return mylabelarray3;
-            }
-            var X1 = YAHOO.util.Dom.getRegion(MyControls[0]);
-            for (m = 0; m <= mylabelarray3.length; m++) {
-                if (m == mylabelarray3.length) {
-                    break;
-                }
-                var X2 = YAHOO.util.Dom.getRegion(mylabelarray3[m]);
-                if (X1.left <= X2.left) {
-                    break;
-                }
-            }
 
-            for (k = 0; k < MyControls.length; k++) {
-                mylabelarray3.splice(m + k, 0, MyControls[k])
-            }
-            for (i = 0; i < mylabelarray3.length; i++) {
-                if (i == 0) {
-                    YAHOO.util.Dom.setX(mylabelarray3[0], X_p);
-                    YAHOO.util.Dom.setY(mylabelarray3[0], Y_p);
-                } else {
-                    var X1 = YAHOO.util.Dom.getRegion(mylabelarray3[i - 1]);
-                    YAHOO.util.Dom.setX(mylabelarray3[i], X1.right + 17);
-                    YAHOO.util.Dom.setY(mylabelarray3[i], Y_p);
-                }
-            }
-        } else {
-            if (array_flag2 == 0) {
-                for (i = 0; i < Mylabels2.length; i++) {
-                    if (Mylabels2[i].id == hLabel.id) {
-                        break;
+                        if (!isDrag) finalArray.push(label);
                     }
                 }
-                mylabelarray3.splice(i, 1, hLabel);
-                Mylabels = mylabelarray3.slice(0);
-                YAHOO.util.Dom.setX(Mylabels[i], Mylabels_left[i]);
-                YAHOO.util.Dom.setY(Mylabels[i], 100);
-                return mylabelarray3;
-            }
-            var X1 = YAHOO.util.Dom.getRegion(hLabel);
-            for (j = 0; j <= mylabelarray3.length; j++) {
-                if (j == mylabelarray3.length) {
-                    break;
+                Mylabels_ea = finalArray;
+                return finalArray;
+
+            } else {
+                // --- 自由配置モード（マウス位置に置くだけ） ---
+                // 重なりや整列は気にせず、置いた場所に置く
+
+                // 配列の再構成（既存 - ドラッグ + ドラッグ）
+                var newArray = [];
+                var dragIds = {};
+                for (var i = 0; i < dragTargets.length; i++) dragIds[dragTargets[i].id] = true;
+
+                for (var i = 0; i < Mylabels_ea.length; i++) {
+                    if (Mylabels_ea[i] && !dragIds[Mylabels_ea[i].id]) newArray.push(Mylabels_ea[i]);
                 }
-                var X2 = YAHOO.util.Dom.getRegion(mylabelarray3[j]);
-                if (X1.left <= X2.left) {
-                    break;
-                }
-            }
-            mylabelarray3.splice(j, 0, hLabel)
-            for (i = 0; i < mylabelarray3.length; i++) {
-                if (i == 0) {
-                    YAHOO.util.Dom.setX(mylabelarray3[0], X_p);
-                    YAHOO.util.Dom.setY(mylabelarray3[0], Y_p);
-                } else {
-                    var X1 = YAHOO.util.Dom.getRegion(mylabelarray3[i - 1]);
-                    YAHOO.util.Dom.setX(mylabelarray3[i], X1.right + 17);
-                    YAHOO.util.Dom.setY(mylabelarray3[i], Y_p);
-                }
+
+                // ドラッグ群を追加
+                for (var i = 0; i < dragTargets.length; i++) newArray.push(dragTargets[i]);
+
+                // 座標はマウス追従のまま（自動補正しない）
+                // ただし、MyControlsの相対位置は維持されているはずなのでそのままでOK
+
+                Mylabels_ea = newArray;
+                return newArray;
             }
         }
-        if (array_flag2 == 1) {
-            Mylabels_r1 = mylabelarray3.slice(0);
-        } else if (array_flag2 == 2) {
-            Mylabels_r2 = mylabelarray3.slice(0);
-        } else if (array_flag2 == 3) {
-            Mylabels_r3 = mylabelarray3.slice(0);
-        } else if (array_flag2 == 4) {
-            Mylabels_ea = mylabelarray3.slice(0);
-        }
+
+
+
         return mylabelarray3;
     }
     //マウスが上に来たらラベルの見た目を変えたり、グループ化やレジスタラベルの対応---------------
@@ -1565,8 +1440,185 @@ $stmt->close();
     }
     // ======================= ▲▲▲ 新規追加ここまで ▲▲▲ =======================
 
+    // ======================= ▼▼▼ 新規追加関数 ▼▼▼ =======================
+
+    // 機能C: スナップ対象のグループに赤枠を表示する関数
+    function highlightSnapTarget(draggedLabel) {
+        if (typeof BPenTarget === 'undefined') return;
+        BPenTarget.clear(); // 常に一度クリア（これで「同時に1個」を実現）
+
+        // 解答欄外やドラッグ中でない場合は何もしない
+        if (array_flag2 !== 4 && array_flag !== 4) return;
+
+        var labels = Mylabels_ea;
+        var droppedRegion = YAHOO.util.Dom.getRegion(draggedLabel);
+        var snapDistanceY = 30;
+
+        var nearestLabel = null;
+        var minDiff = 99999;
+
+        // 1. 最も近い単語を探す（snapToNearestWordと同じロジック）
+        for (var i = 0; i < labels.length; i++) {
+            var target = labels[i];
+            if (target.id === draggedLabel.id) continue; // 自分自身は無視
+
+            // ドラッグ中のグループに含まれる単語も無視
+            if (MyControls.length > 0) {
+                var isSelfGroup = false;
+                for (var k = 0; k < MyControls.length; k++) {
+                    if (MyControls[k].id === target.id) isSelfGroup = true;
+                }
+                if (isSelfGroup) continue;
+            }
+
+            var targetRegion = YAHOO.util.Dom.getRegion(target);
+            var diffY = Math.abs(droppedRegion.top - targetRegion.top);
+
+            if (diffY < snapDistanceY) {
+                var distToRight = Math.abs(droppedRegion.left - targetRegion.right);
+                var distToLeft = Math.abs(droppedRegion.right - targetRegion.left);
+                var closestXDist = Math.min(distToRight, distToLeft);
+
+                // 吸着範囲（50px）に入っているか
+                if (closestXDist < 50 && closestXDist < minDiff) {
+                    minDiff = closestXDist;
+                    nearestLabel = target;
+                }
+            }
+        }
+
+        // 2. 近い単語が見つかったら、その「グループ全体」を囲む
+        if (nearestLabel) {
+            var bounds = getGroupBounds(nearestLabel);
+
+            // 赤枠の描画（少し余白を持たせる）
+            var padding = 5;
+            BPenTarget.drawRect(
+                bounds.left - padding,
+                bounds.top - padding,
+                (bounds.right - bounds.left) + (padding * 2),
+                (bounds.bottom - bounds.top) + (padding * 2)
+            );
+            BPenTarget.paint();
+        }
+    }
+
+    // グループ範囲特定関数（修正版：全体スキャン方式）
+    function getGroupBounds(targetLabel) {
+        // 1. 解答欄にある全単語（ドラッグ中以外）をリストアップ
+        var staticLabels = [];
+        var draggedIds = {};
+        for (var i = 0; i < MyControls.length; i++) draggedIds[MyControls[i].id] = true;
+
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            if (Mylabels_ea[i] && !draggedIds[Mylabels_ea[i].id]) {
+                staticLabels.push(Mylabels_ea[i]);
+            }
+        }
+
+        // 2. X座標順にソート（下線処理と同じ並び順を作る）
+        staticLabels.sort(function(a, b) {
+            var rA = YAHOO.util.Dom.getRegion(a);
+            var rB = YAHOO.util.Dom.getRegion(b);
+            // Y座標が大きく違う（別行）場合はYで比較
+            if (Math.abs(rA.top - rB.top) > 15) return rA.top - rB.top;
+            return rA.left - rB.left;
+        });
+
+        // 3. 端から順にグループを組み立て、ターゲットが含まれるグループを探す
+        var groupGapLimit = 50; // 下線と同じ許容値
+        var currentGroup = [];
+        var targetGroup = null;
+
+        for (var i = 0; i < staticLabels.length; i++) {
+            var label = staticLabels[i];
+            var region = YAHOO.util.Dom.getRegion(label);
+
+            if (currentGroup.length === 0) {
+                currentGroup.push({
+                    label: label,
+                    region: region
+                });
+            } else {
+                var prev = currentGroup[currentGroup.length - 1];
+
+                // 同じ行 かつ 隙間が狭い なら同じグループ
+                var isSameLine = Math.abs(region.top - prev.region.top) < 15;
+                var isCloseEnough = (region.left - prev.region.right) < groupGapLimit;
+
+                if (isSameLine && isCloseEnough) {
+                    currentGroup.push({
+                        label: label,
+                        region: region
+                    });
+                } else {
+                    // グループが途切れたので、今のグループにターゲットが含まれていたか確認
+                    for (var k = 0; k < currentGroup.length; k++) {
+                        if (currentGroup[k].label.id === targetLabel.id) {
+                            targetGroup = currentGroup;
+                            break;
+                        }
+                    }
+                    if (targetGroup) break; // 発見！
+
+                    // 次のグループ作成へ
+                    currentGroup = [{
+                        label: label,
+                        region: region
+                    }];
+                }
+            }
+        }
+
+        // ループ終了後のチェック（最後のグループにターゲットがいる場合）
+        if (!targetGroup) {
+            for (var k = 0; k < currentGroup.length; k++) {
+                if (currentGroup[k].label.id === targetLabel.id) {
+                    targetGroup = currentGroup;
+                    break;
+                }
+            }
+        }
+
+        // ターゲットが見つからない（単独の場合など）
+        if (!targetGroup) {
+            var r = YAHOO.util.Dom.getRegion(targetLabel);
+            return {
+                left: r.left,
+                top: r.top,
+                right: r.right,
+                bottom: r.bottom
+            };
+        }
+
+        // 4. 特定したグループの最大・最小座標を計算
+        var minX = 99999,
+            minY = 99999,
+            maxX = -99999,
+            maxY = -99999;
+        for (var i = 0; i < targetGroup.length; i++) {
+            var r = targetGroup[i].region;
+            if (r.left < minX) minX = r.left;
+            if (r.top < minY) minY = r.top;
+            if (r.right > maxX) maxX = r.right;
+            if (r.bottom > maxY) maxY = r.bottom;
+        }
+
+        return {
+            left: minX,
+            top: minY,
+            right: maxX,
+            bottom: maxY
+        };
+    }
+
     //★★ラベルを離した時の作業。問題文の形を変えたりいろいろ
     function MyLabels_MouseUp(sender) {
+        // ▼▼▼ 追加: ドロップしたら赤枠は消す ▼▼▼
+        if (typeof BPenTarget !== 'undefined') {
+            BPenTarget.clear();
+        }
+        // ▲▲▲ 追加ここまで ▲▲▲
         //枠の色リセット
         document.getElementById("question").style.borderColor = "black";
         document.getElementById("answer").style.borderColor = "black";
@@ -1689,12 +1741,15 @@ $stmt->close();
         }
         // ▼▼▼ 座標取得処理を追加 ▼▼▼
         var ey = 0;
+        var ex = 0;
         if (e) {
             // YUIイベント、または標準イベントからページY座標を取得
             ey = (typeof e.pageY !== 'undefined') ? e.pageY : e.clientY;
+            ex = (typeof event !== 'undefined') ? event.x : e.clientX;
         } else if (typeof event !== 'undefined') {
             // IEなどの古い仕様へのフォールバック
             ey = event.y;
+            ex = event.x;
         }
 
         var hLabel = sender;
@@ -1734,6 +1789,13 @@ $stmt->close();
             }
         }
 
+        // ▼▼▼ 追加: スナップ候補の赤枠表示処理 ▼▼▼
+        if (IsDragging && typeof highlightSnapTarget === 'function') {
+            // ドラッグしている要素(sender)をもとに判定
+            highlightSnapTarget(sender);
+        }
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         var line_flag = -1;
         var line_array = new Array();
         var line_x = 0;
@@ -1750,89 +1812,140 @@ $stmt->close();
             line_flag = 0;
         } else if (ey <= 550 && ey >= 160) {
             line_flag = 4;
-        } else {
-            line_flag = -1;
         }
-        if (line_flag == 0) {
-            document.getElementById("question").style.borderColor = "red";
-            line_array = Mylabels.slice(0);
-            lstart_x = DefaultX;
-            lstart_y = DefaultY;
-        } else if (line_flag == 4) {
+        if (line_flag == 4) {
             document.getElementById("answer").style.borderColor = "red";
-            line_array = Mylabels_ea.slice(0);
-            lstart_x = DefaultX_ea;
-            lstart_y = DefaultY_ea;
-        }
-        // ▼ 1. ループの外で一度だけ取得する（最適化）
-        var send;
-        if (MyControls.length > 0) {
-            send = YAHOO.util.Dom.getRegion(MyControls[0]);
-        } else {
-            send = YAHOO.util.Dom.getRegion(sender);
-        }
 
-        if (line_array.length == 0) {
-            var line_x = lstart_x;
-            var line_y = lstart_y;
-            var line_y2 = lstart_y + 18;
-        } else {
-            for (i = 0; i < line_array.length; i++) {
-                var ali = YAHOO.util.Dom.getRegion(line_array[i]);
+            // ドラッグ中の対象（単体またはグループ）を特定
+            var dragTargets = (MyControls.length > 0) ? MyControls : [sender];
 
-                // ▼ 2. ali1 (次の要素) の取得は必要な時だけ、かつ安全に行う
-                var ali1 = null;
-                if (i < line_array.length - 1) {
-                    ali1 = YAHOO.util.Dom.getRegion(line_array[i + 1]);
-                }
+            // 判定関数を呼び出し
+            var info = getTargetInfo(ex, ey, dragTargets);
 
-                // 先頭への挿入判定
-                if (i == 0 && send.left < ali.left) {
-                    line_x = ali.left - 8;
-                    line_y = ali.top;
-                    line_y2 = line_y + (ali.bottom - ali.top);
-                    break; // 見つかったらループを抜ける（効率化）
-                }
-                // 末尾への挿入判定
-                else if (i == line_array.length - 1 && send.left >= ali.left) {
-                    line_x = ali.right + 8;
-                    line_y = ali.top;
-                    line_y2 = line_y + (ali.bottom - ali.top);
-                    break;
-                }
-                // 中間への挿入判定（ali1が存在する前提）
-                else if (ali1 && send.left >= ali.left && send.left < ali1.left) {
-                    line_x = ali1.left - 8;
-                    line_y = ali1.top;
-                    line_y2 = line_y + (ali1.bottom - ali1.top);
-                    break;
-                }
+            if (info.mode === "insert") {
+                // 挿入モードなら線を引く
+                draw3();
+                draw2(info.lineX, info.refY, info.refY + 25); // 縦線を少し長く
+
+                // ★                // 補足: 視覚的に分かりやすくするため、線の位置を赤枠表示と連動させても良いですが
+                // 今回は縦線のみを表示します。
+            } else {
+                // 自由配置モードなら線は消す
+                draw3();
             }
-        }
-        //問題提示欄には表示させない
-        // ▼▼▼ このif文の条件を変更します ▼▼▼
-        if (line_flag == 0) {
+
+            // スナップ候補の赤枠表示（既存機能）
+            if (typeof highlightSnapTarget === 'function') {
+                highlightSnapTarget(sender);
+            }
+
+        } else if (line_flag == 0) {
+            document.getElementById("question").style.borderColor = "red";
             draw3();
-            draw2(line_x, line_y, line_y2);
         } else {
+            document.getElementById("answer").style.borderColor = "black";
+            document.getElementById("question").style.borderColor = "black";
             draw3();
         }
 
-        MytoFo = true;
-        // Form1_MouseMove(sender); // 再帰呼び出し注意（元のコードにある場合）
-        // 元のコードでは Form1_MouseMove を呼んでいますが、無限ループのリスクがあるため
-        // ここではなく、イベントハンドラとして独立しているなら不要です。
-        // もし既存コードで動いていたならそのままにしておきます。
-        if (typeof Form1_MouseMove == 'function') {
-            // Form1_MouseMove(sender); // ここは元の実装に依存しますが、通常はdraw()を呼ぶだけです
-            // ここではdraw()を呼ぶ処理を含めます
-            if (MV == true) {
-                draw();
-                ePos.x = event.x + cx;
-                ePos.y = event.y + cy;
-            }
+        if (MV == true) {
+            draw();
+            ePos.x = event.x + cx;
+            ePos.y = event.y + cy;
         }
     }
+
+    // ▼▼▼ 新規追加: 挿入位置計算用関数 ▼▼▼
+    function getTargetInfo(mouseX, mouseY, draggedLabels) {
+        // 1. ドラッグ中以外の単語（静的単語）を抽出
+        var staticLabels = [];
+        var draggedIds = {};
+        for (var i = 0; i < draggedLabels.length; i++) draggedIds[draggedLabels[i].id] = true;
+
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            if (Mylabels_ea[i] && !draggedIds[Mylabels_ea[i].id]) {
+                staticLabels.push(Mylabels_ea[i]);
+            }
+        }
+
+        // 2. Y座標（高さ）がマウスに近い単語だけをターゲット候補にする
+        // これにより、全く違う高さ（自由配置エリア）にあるときは吸着しない
+        var nearbyLabels = [];
+        var rangeY = 40; // Y方向の吸着範囲
+
+        for (var i = 0; i < staticLabels.length; i++) {
+            var r = YAHOO.util.Dom.getRegion(staticLabels[i]);
+            var centerY = (r.top + r.bottom) / 2;
+            if (Math.abs(mouseY - centerY) < rangeY) {
+                nearbyLabels.push(staticLabels[i]);
+            }
+        }
+
+        // 近くに単語がない場合は「自由配置」
+        if (nearbyLabels.length === 0) {
+            return {
+                mode: "free",
+                index: -1,
+                lineX: -1,
+                refY: -1,
+                targets: []
+            };
+        }
+
+        // 3. X座標でソートして、隙間を探す
+        nearbyLabels.sort(function(a, b) {
+            return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+        });
+
+        var insertIndex = nearbyLabels.length; // デフォルトは末尾
+        var lineX = -1;
+        var gap = 15; // 単語間の隙間
+
+        // 左端チェック
+        var firstR = YAHOO.util.Dom.getRegion(nearbyLabels[0]);
+        if (mouseX < firstR.left) {
+            insertIndex = 0;
+            lineX = firstR.left - (gap / 2);
+        } else {
+            // 各単語の間をチェック
+            for (var i = 0; i < nearbyLabels.length; i++) {
+                var currentR = YAHOO.util.Dom.getRegion(nearbyLabels[i]);
+
+                // 最後の単語より右
+                if (i === nearbyLabels.length - 1) {
+                    if (mouseX >= currentR.left) { // 単語の左半分より右にあれば、その次
+                        insertIndex = nearbyLabels.length;
+                        lineX = currentR.right + (gap / 2);
+                    }
+                } else {
+                    // 中間チェック
+                    var nextR = YAHOO.util.Dom.getRegion(nearbyLabels[i + 1]);
+                    // 判定基準: 「現在の単語の中心」～「次の単語の中心」の間なら、その隙間
+                    var currentCenter = (currentR.left + currentR.right) / 2;
+                    var nextCenter = (nextR.left + nextR.right) / 2;
+
+                    if (mouseX >= currentCenter && mouseX < nextCenter) {
+                        insertIndex = i + 1;
+                        // 線の位置は、前の単語の右端と、次の単語の左端の中間
+                        lineX = (currentR.right + nextR.left) / 2;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 基準となるY座標（ターゲット群の平均または先頭のY）
+        var refY = YAHOO.util.Dom.getRegion(nearbyLabels[0]).top;
+
+        return {
+            mode: "insert",
+            index: insertIndex,
+            lineX: lineX,
+            refY: refY,
+            targets: nearbyLabels // ソート済みの静的単語リスト
+        };
+    }
+    // ▲▲▲ 追加ここまで ▲▲▲
     //挿入線の描画
     function draw2(x, y1, y2) {
         BPen2.drawLine(x + cx, y1 + cy, x + cx, y2 + cy);
