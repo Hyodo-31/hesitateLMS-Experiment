@@ -1266,7 +1266,7 @@ $stmt->close();
     //マウスが上に来たらラベルの見た目を変えたり、グループ化やレジスタラベルの対応---------------
     function MyLabels_MouseEnter(e) {
 
-        // ======================= ▼▼▼ ここからが修正箇所です ▼▼▼ =======================
+        // ======================= ▼▼▼ 修正箇所 ▼▼▼ =======================
         var tooltip = document.getElementById('wordOrderTooltip');
         var hoveredLabel = this; // マウスが乗っているラベル
 
@@ -1276,10 +1276,8 @@ $stmt->close();
         });
 
         if (isInAnswerArea) {
-            // 解答欄の単語をx座標でソートしたコピーを作成
-            var sortedCopy = Mylabels_ea.slice(0).sort(function (a, b) {
-                return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
-            });
+            // 【変更】共通関数を使って正しい順序を取得
+            var sortedCopy = getSortedAnswerLabels();
 
             // ソート済み配列内でのインデックスを探す
             var orderIndex = -1;
@@ -1291,16 +1289,15 @@ $stmt->close();
             }
 
             if (orderIndex !== -1) {
-                tooltip.innerHTML = orderIndex + 1; // 順番は1から始まるため +1
+                tooltip.innerHTML = orderIndex + 1; // 1から始まる番号
                 var hoveredRegion = YAHOO.util.Dom.getRegion(hoveredLabel);
 
-                // ポップアップを単語の左上に表示
                 tooltip.style.left = (hoveredRegion.left) + 'px';
                 tooltip.style.top = (hoveredRegion.top - 20) + 'px'; // 20px上に表示
                 tooltip.style.display = 'block';
             }
         }
-        // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
+        // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
 
         if (MV == true || IsDragging == true) {
             return;
@@ -1341,19 +1338,15 @@ $stmt->close();
         YAHOO.util.Dom.setStyle(this, "background-color", "transparent");
     }
 
-    // ■■■ 追加: 解答プレビュー更新用関数 ■■■
+    // ■■■ 修正: 解答プレビュー更新用関数 ■■■
     function updateAnswerPreview() {
         var previewBox = document.getElementById("AnswerPreview");
         if (!previewBox) return;
 
-        // 解答欄にあるラベルをX座標順にソートして取得
-        var sortedPreviewLabels = Mylabels_ea.slice(0).sort(function (a, b) {
-            var ra = YAHOO.util.Dom.getRegion(a);
-            var rb = YAHOO.util.Dom.getRegion(b);
-            var ax = ra ? ra.left : 0;
-            var bx = rb ? rb.left : 0;
-            return ax - bx;
-        });
+        // 【変更】単純なXソートから、共通関数を使った「塊ソート」へ変更
+        // これにより、プレビュー欄も「塊ごとの順序」で表示されます
+        // ※ getSortedAnswerLabels() は先ほど追加した共通関数です
+        var sortedPreviewLabels = getSortedAnswerLabels();
 
         var previewText = "";
 
@@ -1369,6 +1362,8 @@ $stmt->close();
             // 【機能1】最初の単語の頭文字を大文字化
             // previewTextがまだ空（＝これが最初の単語）の場合のみ実行
             if (previewText === "") {
+                // 英語のテストの場合のみ大文字化などの処理を入れるのが理想ですが、
+                // 既存ロジックに合わせて単純に適用します
                 word = word.charAt(0).toUpperCase() + word.slice(1);
             }
 
@@ -2050,7 +2045,7 @@ $stmt->close();
         }
 
         // 2. 同じ高さ（行）にある単語だけを抽出
-        var rangeY = 40;
+        var rangeY = 30;
         var rowLabels = [];
         for (var i = 0; i < staticLabels.length; i++) {
             var r = YAHOO.util.Dom.getRegion(staticLabels[i]);
@@ -2093,7 +2088,7 @@ $stmt->close();
         // 5. マウスに最も近いクラスターを探す
         var bestCluster = null;
         var minDistance = 99999;
-        var snapRange = 25; // ★縦線を表示する限界距離
+        var snapRange = 50; // ★縦線を表示する限界距離
 
         for (var i = 0; i < clusters.length; i++) {
             // クラスターの左端・右端を取得
@@ -2197,6 +2192,97 @@ $stmt->close();
         }
     }
 
+    // ▼▼▼ 【新規追加】塊（グループ）認識・ソート用共通関数 ▼▼▼
+
+    // 解答欄の単語を「塊」ごとにグループ化する関数
+    function getAnswerGroups(gapLimit, ignoreDragged) {
+        // 1. 対象ラベルの抽出
+        var targets = [];
+        var draggedIds = {};
+
+        // ドラッグ中を除外する場合の処理
+        if (ignoreDragged && typeof MyControls !== 'undefined') {
+            for (var i = 0; i < MyControls.length; i++) draggedIds[MyControls[i].id] = true;
+            if (typeof DragL !== 'undefined' && DragL) draggedIds[DragL.id] = true;
+        }
+
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            var lbl = Mylabels_ea[i];
+            if (lbl && !draggedIds[lbl.id]) {
+                targets.push(lbl);
+            }
+        }
+
+        // 2. まずは視覚的な読み順（上から下、左から右）でソートして整列させる
+        targets.sort(function (a, b) {
+            var rA = YAHOO.util.Dom.getRegion(a);
+            var rB = YAHOO.util.Dom.getRegion(b);
+            // 高さのズレが20px未満なら同じ行とみなす
+            if (Math.abs(rA.top - rB.top) > 20) {
+                return rA.top - rB.top;
+            }
+            return rA.left - rB.left;
+        });
+
+        // 3. 距離が近いものをグループ化
+        var groups = [];
+        if (targets.length > 0) {
+            var currentMembers = [targets[0]];
+            // グループの左端座標（最初の単語の左端）
+            var rFirst = YAHOO.util.Dom.getRegion(targets[0]);
+            var currentLeft = rFirst.left;
+
+            for (var i = 1; i < targets.length; i++) {
+                var prev = targets[i - 1];
+                var curr = targets[i];
+                var rPrev = YAHOO.util.Dom.getRegion(prev);
+                var rCurr = YAHOO.util.Dom.getRegion(curr);
+
+                var isSameLine = Math.abs(rCurr.top - rPrev.top) < 20;
+                var isClose = (rCurr.left - rPrev.right) < gapLimit;
+
+                if (isSameLine && isClose) {
+                    currentMembers.push(curr);
+                } else {
+                    groups.push({
+                        members: currentMembers,
+                        left: currentLeft
+                    });
+                    currentMembers = [curr];
+                    currentLeft = rCurr.left;
+                }
+            }
+            groups.push({
+                members: currentMembers,
+                left: currentLeft
+            });
+        }
+        return groups;
+    }
+
+    // グループの左端座標に基づいて並び替えた単語リストを取得する関数
+    function getSortedAnswerLabels() {
+        // 1. グループ化（しきい値25px）
+        var groups = getAnswerGroups(25, false);
+
+        // 2. グループの「左端（left）」を比較して、小さい順（左→右）に並べ替え
+        // これにより、行が違っても「左にある塊」から順に並びます
+        groups.sort(function (a, b) {
+            return a.left - b.left;
+        });
+
+        // 3. フラットな配列に戻す
+        var sortedList = [];
+        for (var i = 0; i < groups.length; i++) {
+            var members = groups[i].members;
+            for (var j = 0; j < members.length; j++) {
+                sortedList.push(members[j]);
+            }
+        }
+        return sortedList;
+    }
+    // ▲▲▲ 追加ここまで ▲▲▲
+
     //○○決定ボタン
     function Button1_Click() {
         //終了条件チェック
@@ -2279,16 +2365,10 @@ $stmt->close();
             alert("失敗g");
         }
 
-        // ▼▼▼ ここから下のブロックを、ごっそり差し替えてください ▼▼▼
+        // ▼▼▼ 修正版: 共通関数を使用したソート処理 ▼▼▼
 
-        // 解答欄(Mylabels_ea)にある単語要素を、x座標の昇順でソート
-        sorted_labels = Mylabels_ea.filter(function (el) {
-            return el;
-        }).sort(function (a, b) {
-            var x_a = YAHOO.util.Dom.getRegion(a).left; // 各単語の左端のx座標を取得
-            var x_b = YAHOO.util.Dom.getRegion(b).left;
-            return x_a - x_b; // x座標が小さい順（左から右）に並べ替え
-        });
+        // 共通関数 getSortedAnswerLabels を呼び出して、塊ごとの順序で並んだ配列を取得
+        sorted_labels = getSortedAnswerLabels();
 
         // ソートされた順に単語を連結して解答文を作成
         MyAnswer = "";
@@ -2309,7 +2389,6 @@ $stmt->close();
             MyAnswer += PorQ;
         }
 
-        // ▲▲▲ 差し替えはここまで ▲▲▲
 
         WriteAnswer = MyAnswer;
         $QAData["EndSentence"] = MyAnswer;
@@ -2414,6 +2493,11 @@ $stmt->close();
     function Button2_Click() {
         var answerBox = document.getElementById('answer');
         jQuery(answerBox).empty();
+        var previewBox = document.getElementById("AnswerPreview");
+        if (previewBox) {
+            previewBox.innerHTML = "";
+            YAHOO.util.Dom.setStyle("AnswerPreview", "display", "block");
+        }
 
         if (OID == nEnd) {
             alert(<?= json_encode(translate('ques.php_996行目_終了です')) ?>);
@@ -2521,6 +2605,13 @@ $stmt->close();
         document.getElementById("Button3").disabled = true;
         YAHOO.util.Dom.setStyle("Button3", "display", "none");
         YAHOO.util.Dom.setStyle("Button1", "display", "block");
+
+        var previewBox = document.getElementById("AnswerPreview");
+        if (previewBox) {
+            previewBox.innerHTML = "";
+            YAHOO.util.Dom.setStyle("AnswerPreview", "display", "block");
+        }
+        
         setques();
 
     }
