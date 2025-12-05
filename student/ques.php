@@ -316,6 +316,7 @@ $stmt->close();
         BPen.setStroke(-1);
         BPen2 = new jsGraphics("myCanvas"); //ペン(挿入線用)
         BPen2.setColor("black");
+        BPen2.setStroke(4);
         //スラッシュ入れる用
         BPen3 = new jsGraphics("myCanvas2");
 
@@ -2117,7 +2118,8 @@ $stmt->close();
         var gap = 15;
 
         var firstR = YAHOO.util.Dom.getRegion(targetLabels[0]);
-        if (mouseX < firstR.left) {
+        var firstCenter = (firstR.left + firstR.right) / 2;
+        if (mouseX < firstCenter) {
             insertIndex = 0;
             lineX = firstR.left - (gap / 2);
         } else {
