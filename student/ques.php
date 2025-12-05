@@ -1786,6 +1786,82 @@ $stmt->close();
         };
     }
 
+    // ======================= ▼▼▼ 新規追加: オーバーフロー予測関数 ▼▼▼ =======================
+    function predictOverflow(sender) {
+        var limitRight = 812; // 解答欄の右端座標
+        var gap = 15;         // 単語間の隙間
+        var snapDist = 50;    // 吸着判定距離
+
+        // 1. ドラッグしている対象（単体またはグループ）の総幅を計算
+        var targets = (MyControls.length > 0) ? MyControls : [sender];
+        var minX = 99999, maxX = -99999;
+        for (var i = 0; i < targets.length; i++) {
+            var r = YAHOO.util.Dom.getRegion(targets[i]);
+            if (r.left < minX) minX = r.left;
+            if (r.right > maxX) maxX = r.right;
+        }
+        var dragWidth = maxX - minX;
+
+        // 現在のマウス位置（ドロップ位置）の基準
+        var senderRegion = YAHOO.util.Dom.getRegion(sender);
+
+        // 2. 【判定A】既存の単語の「右側」に吸着する場合のチェック
+        // snapToNearestWord と同様の判定を行い、はみ出しを予測
+        var labels = Mylabels_ea;
+        var draggedIds = {};
+        for (var i = 0; i < targets.length; i++) draggedIds[targets[i].id] = true;
+
+        for (var i = 0; i < labels.length; i++) {
+            var target = labels[i];
+            if (draggedIds[target.id]) continue; // 自分自身は除外
+
+            var tR = YAHOO.util.Dom.getRegion(target);
+
+            // Y軸（行）が合っているか
+            if (Math.abs(senderRegion.top - tR.top) > 30) continue;
+
+            // X軸: ターゲットの「右側」に吸着する距離にあるか？
+            // (ドロップ位置の左端 - ターゲットの右端) の距離をチェック
+            var distToRight = Math.abs(senderRegion.left - tR.right);
+
+            // 吸着範囲内、かつ ドロップ位置がターゲットより右側（あるいはほぼ真上）の場合
+            if (distToRight < snapDist) {
+                // 吸着後の「予想される右端」を計算
+                // ターゲットの右端 + 隙間 + ドラッグしている幅
+                var futureRightEdge = tR.right + gap + dragWidth;
+
+                if (futureRightEdge > limitRight) {
+                    return true; // はみ出し確定
+                }
+            }
+        }
+
+        // 3. 【判定B】既存のグループの間に「挿入」する場合のチェック
+        // getTargetInfo（挿入モード）が発動する場合、グループ全体が右に伸びるためチェックが必要
+        var ex = (typeof event !== 'undefined') ? event.x : 0;
+        var ey = (typeof event !== 'undefined') ? event.y : 0;
+
+        // ドラッグ対象を除外して挿入判定
+        var info = getTargetInfo(ex, ey, targets);
+
+        if (info.mode === "insert") {
+            // 挿入対象となるグループの、現在の「最も右にある端」を取得
+            var clusterMaxX = -9999;
+            for (var k = 0; k < info.targets.length; k++) {
+                var r = YAHOO.util.Dom.getRegion(info.targets[k]);
+                if (r.right > clusterMaxX) clusterMaxX = r.right;
+            }
+
+            // 挿入によってグループの幅が「ドラッグ幅 + 隙間」ぶん増えるため、それを加算して判定
+            if (clusterMaxX + gap + dragWidth > limitRight) {
+                return true; // はみ出し確定
+            }
+        }
+
+        return false; // はみ出しなし
+    }
+    // ======================= ▲▲▲ 追加ここまで ▲▲▲ =======================
+
     //★★ラベルを離した時の作業。問題文の形を変えたりいろいろ
     function MyLabels_MouseUp(sender) {
         // ▼▼▼ 追加: ドロップしたら赤枠は消す ▼▼▼
@@ -1802,7 +1878,11 @@ $stmt->close();
         // 解答欄の範囲 (12 <= x <= 812 かつ 160 <= y <= 550) の場合のみ配置許可
         // それ以外（問題提示欄含む、解答欄外すべて）は、初期位置に戻す判定(0)にする
         if (event.x >= 40 && event.x <= 812 && event.y >= 160 && event.y <= 550) {
-            array_flag2 = 4; // 解答欄
+            if (predictOverflow(sender)) {
+                array_flag2 = 0; // はみ出すので問題提示欄へ強制送還
+            } else {
+                array_flag2 = 4; // 解答欄へ配置OK
+            }
         } else {
             array_flag2 = 0; // 問題提示欄（リセット処理）へ強制送還
         }
@@ -2611,7 +2691,7 @@ $stmt->close();
             previewBox.innerHTML = "";
             YAHOO.util.Dom.setStyle("AnswerPreview", "display", "block");
         }
-        
+
         setques();
 
     }
