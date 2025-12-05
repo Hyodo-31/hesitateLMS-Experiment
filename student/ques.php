@@ -907,6 +907,86 @@ $stmt->close();
         }
     }
 
+    // ▼▼▼ 新規追加: ドラッグ開始時に穴を埋める関数 ▼▼▼
+    function closeGapOnDrag(sender, controls) {
+        // 1. ドラッグ対象（単体 or グループ）の範囲を計算
+        var targets = (controls.length > 0) ? controls : [sender];
+
+        var minX = 99999,
+            maxX = -99999;
+        var avgY = 0;
+
+        for (var i = 0; i < targets.length; i++) {
+            var r = YAHOO.util.Dom.getRegion(targets[i]);
+            if (r.left < minX) minX = r.left;
+            if (r.right > maxX) maxX = r.right;
+            avgY += r.top;
+        }
+        avgY /= targets.length;
+
+        var removedWidth = maxX - minX;
+        var gap = 15; // 単語間の隙間
+        var shiftAmount = removedWidth + gap; // 左にずらす量
+
+        // 2. 解答欄にある「ドラッグしていない単語」を抽出
+        var candidates = [];
+        var draggedIds = {};
+        for (var i = 0; i < targets.length; i++) draggedIds[targets[i].id] = true;
+
+        for (var i = 0; i < Mylabels_ea.length; i++) {
+            var lbl = Mylabels_ea[i];
+            if (lbl && !draggedIds[lbl.id]) {
+                candidates.push(lbl);
+            }
+        }
+
+        // X座標順にソート
+        candidates.sort(function(a, b) {
+            return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
+        });
+
+        // 3. 右隣にある「つながっている単語群」を特定
+        var chainToShift = [];
+        var gapLimit = 25; // クラスターとみなす距離（赤枠・下線と同じ）
+
+        for (var i = 0; i < candidates.length; i++) {
+            var lbl = candidates[i];
+            var r = YAHOO.util.Dom.getRegion(lbl);
+
+            // 行が違う（高さが違う）ものは無視
+            if (Math.abs(r.top - avgY) > 20) continue;
+
+            // ドラッグ対象より右にあるか？
+            // ※少し余裕を見て minX より右にあるものをチェック対象とする
+            if (r.left > minX) {
+                if (chainToShift.length === 0) {
+                    // 最初の1個目：ドラッグ対象の「すぐ右」にあるか？
+                    // (右端 - 左端) が 隙間許容値以内なら「つながっている」とみなす
+                    if (r.left >= maxX && (r.left - maxX) < gapLimit) {
+                        chainToShift.push(lbl);
+                    }
+                } else {
+                    // 2個目以降：前の単語とつながっているか？
+                    var prevR = YAHOO.util.Dom.getRegion(chainToShift[chainToShift.length - 1]);
+                    if (r.left - prevR.right < gapLimit) {
+                        chainToShift.push(lbl);
+                    } else {
+                        // 途切れたら終了
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 4. 特定した単語群を左にずらす（穴埋め）
+        for (var i = 0; i < chainToShift.length; i++) {
+            var el = chainToShift[i];
+            var currentX = YAHOO.util.Dom.getRegion(el).left;
+            YAHOO.util.Dom.setX(el, currentX - shiftAmount);
+        }
+    }
+    // ▲▲▲ 追加ここまで ▲▲▲
+
     // ソート関数（衝突回避・自動結合版）
     function MyLabelSort(sender, ex, ey) {
         var mylabelarray3 = new Array();
@@ -1262,6 +1342,11 @@ $stmt->close();
             }
         } else {
             DLabel = DLabel + hLabel.id;
+        }
+
+        // 解答欄からドラッグする場合、配列から削除する前に穴埋め処理を実行
+        if (array_flag == 4) {
+            closeGapOnDrag(sender, MyControls);
         }
 
         // 配列からの削除処理
