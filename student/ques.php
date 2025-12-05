@@ -1171,16 +1171,23 @@ $stmt->close();
                     // 衝突チェック用のマージン（px）
                     // この値の分だけ、他の単語から離します
                     var marginY = 20;
+                    var marginX = 20;
 
                     var myBottom = y + groupH;
+                    var myRight = x + groupW;
 
                     for (var k = 0; k < staticRegions.length; k++) {
                         var obs = staticRegions[k];
 
-                        // 障害物の領域を仮想的に広げて判定する（マージン確保）
-                        // 自分の領域 (x, y) が、(障害物 - margin) の範囲に入ってしまったらNG
-                        if (y < obs.bottom + marginY && myBottom > obs.top - marginY) {
-                            return false; // 近すぎる
+                        // Y軸（高さ）が重なっているか
+                        var isYOverlap = (y < obs.bottom + marginY && myBottom > obs.top - marginY);
+
+                        // X軸（横幅）が重なっているか
+                        var isXOverlap = (x < obs.right + marginX && myRight > obs.left - marginX);
+
+                        // 両方重なっている場合のみ「配置不可」とする
+                        if (isYOverlap && isXOverlap) {
+                            return false; // 近すぎる（衝突）
                         }
                     }
                     return true;
