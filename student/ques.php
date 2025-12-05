@@ -987,7 +987,7 @@ $stmt->close();
     }
     // ▲▲▲ 追加ここまで ▲▲▲
 
-    // ソート関数（衝突回避・自動結合版）
+    // ソート関数（境界厳守・空きスペース探索版）
     function MyLabelSort(sender, ex, ey) {
         var mylabelarray3 = new Array();
 
@@ -1015,38 +1015,31 @@ $stmt->close();
             return mylabelarray3;
         }
 
-        // --- B. 解答欄での処理（修正箇所） ---
+        // --- B. 解答欄での処理 ---
         else if (array_flag2 == 4) {
             var dragTargets = (MyControls.length > 0) ? MyControls : [sender];
-
-            // 1. 挿入位置とターゲットの判定
             var info = getTargetInfo(ex, ey, dragTargets);
 
             if (info.mode === "insert") {
-                // --- 挿入モード：衝突判定と結合 ---
-
-                var targetCluster = info.targets; // 挿入先のクラスター
+                // --- 挿入モード（変更なし） ---
+                // ※縦線が出ているときはそのガイドに従うため、ここでは衝突計算等は不要
+                // （前回のコードと同じロジックを維持）
+                var targetCluster = info.targets;
                 var insertIdx = info.index;
-                var mergedGroup = []; // 最終的に再整列する単語リスト
+                var mergedGroup = [];
 
-                // 2. 「挿入先クラスター」＋「ドラッグ群」を結合
                 for (var i = 0; i < insertIdx; i++) mergedGroup.push(targetCluster[i]);
                 for (var i = 0; i < dragTargets.length; i++) mergedGroup.push(dragTargets[i]);
                 for (var i = insertIdx; i < targetCluster.length; i++) mergedGroup.push(targetCluster[i]);
 
-                // 3. 【重要】拡張による衝突チェックと結合
-                // 他の単語群が近くにあるか確認し、あれば mergedGroup に取り込む
-
-                // まず、現在 mergedGroup に含まれているIDを記録
+                // 衝突チェックと結合
                 var processedIds = {};
                 for (var i = 0; i < mergedGroup.length; i++) processedIds[mergedGroup[i].id] = true;
 
-                // 解答欄にある「その他」の静的単語を取得
                 var otherCandidates = [];
                 for (var i = 0; i < Mylabels_ea.length; i++) {
                     var lbl = Mylabels_ea[i];
                     if (lbl && !processedIds[lbl.id]) {
-                        // ドラッグ中のものは除外（既にmergedGroupに入っているはずだが念のため）
                         var isDrag = false;
                         for (var d = 0; d < dragTargets.length; d++) {
                             if (dragTargets[d].id == lbl.id) isDrag = true;
@@ -1054,75 +1047,48 @@ $stmt->close();
                         if (!isDrag) otherCandidates.push(lbl);
                     }
                 }
-
-                // otherCandidatesをX座標順にソート
                 otherCandidates.sort(function(a, b) {
                     return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
                 });
 
-                // 結合・再計算ループ
                 var gap = 15;
-                var mergeDist = 25; // 結合判定距離（赤枠や下線と同じ基準）
-
-                // mergedGroupの現在の右端座標を仮計算して、衝突を調べる
-                // 基準位置（先頭）
+                var mergeDist = 25;
                 var startX = 0;
-                if (insertIdx === 0 && info.lineX !== -1) {
-                    startX = info.lineX;
-                } else {
-                    var firstR = YAHOO.util.Dom.getRegion(mergedGroup[0]);
-                    startX = firstR.left;
-                }
+                if (insertIdx === 0 && info.lineX !== -1) startX = info.lineX;
+                else startX = YAHOO.util.Dom.getRegion(mergedGroup[0]).left;
 
-                // 現在のグループ幅をシミュレーションして右端を求める
                 var currentRight = startX;
                 for (var i = 0; i < mergedGroup.length; i++) {
                     var r = YAHOO.util.Dom.getRegion(mergedGroup[i]);
-                    var w = r.right - r.left;
-                    currentRight += w + gap;
+                    currentRight += (r.right - r.left) + gap;
                 }
-                currentRight -= gap; // 最後のgapは不要なので引く
+                currentRight -= gap;
 
-                // 候補リストを見て、右端に近いものがあれば取り込む
                 for (var i = 0; i < otherCandidates.length; i++) {
                     var candidate = otherCandidates[i];
                     var rCand = YAHOO.util.Dom.getRegion(candidate);
-
-                    // 同じ行（Y座標が近い）であること
                     if (Math.abs(rCand.top - info.refY) < 20) {
-                        // 「現在の右端」と「候補の左端」が近い、または重なっているなら結合
                         if (rCand.left - currentRight < mergeDist) {
-                            // 結合！
                             mergedGroup.push(candidate);
                             processedIds[candidate.id] = true;
-
-                            // 右端を更新（取り込んだ分だけ伸びる）
-                            var w = rCand.right - rCand.left;
-                            currentRight += gap + w;
+                            currentRight += gap + (rCand.right - rCand.left);
                         }
                     }
                 }
 
-                // 4. 確定した mergedGroup を再描画（リレイアウト）
                 var currentX = startX;
                 for (var i = 0; i < mergedGroup.length; i++) {
                     var el = mergedGroup[i];
                     var r = YAHOO.util.Dom.getRegion(el);
-                    var w = r.right - r.left;
-
                     YAHOO.util.Dom.setX(el, currentX);
                     YAHOO.util.Dom.setY(el, info.refY);
-
-                    currentX += w + gap;
+                    currentX += (r.right - r.left) + gap;
                 }
 
-                // 5. グローバル配列の更新
                 var finalArray = [];
-                // まず mergedGroup 以外の残りの単語を追加
                 for (var i = 0; i < Mylabels_ea.length; i++) {
                     var lbl = Mylabels_ea[i];
                     if (lbl && !processedIds[lbl.id]) {
-                        // ドラッグ対象以外
                         var isDrag = false;
                         for (var d = 0; d < dragTargets.length; d++) {
                             if (dragTargets[d].id == lbl.id) isDrag = true;
@@ -1130,20 +1096,155 @@ $stmt->close();
                         if (!isDrag) finalArray.push(lbl);
                     }
                 }
-                // 次に mergedGroup を追加
                 for (var i = 0; i < mergedGroup.length; i++) finalArray.push(mergedGroup[i]);
-
                 Mylabels_ea = finalArray;
                 return finalArray;
 
             } else {
-                // --- 自由配置モード ---
-                var newArray = [];
-                var dragIds = {};
-                for (var i = 0; i < dragTargets.length; i++) dragIds[dragTargets[i].id] = true;
+                // --- 自由配置モード：▼▼▼ 修正箇所：総当たりスペース探索 ▼▼▼ ---
+
+                // 1. 静的単語（障害物）リストを作成
+                var staticRegions = [];
+                var draggedIds = {};
+                for (var i = 0; i < dragTargets.length; i++) draggedIds[dragTargets[i].id] = true;
 
                 for (var i = 0; i < Mylabels_ea.length; i++) {
-                    if (Mylabels_ea[i] && !dragIds[Mylabels_ea[i].id]) newArray.push(Mylabels_ea[i]);
+                    if (Mylabels_ea[i] && !draggedIds[Mylabels_ea[i].id]) {
+                        // 障害物の領域を保存
+                        staticRegions.push(YAHOO.util.Dom.getRegion(Mylabels_ea[i]));
+                    }
+                }
+
+                // 2. ドラッグ群全体のバウンディングボックス（サイズ）を計算
+                var minX = 99999,
+                    maxX = -99999,
+                    minY = 99999,
+                    maxY = -99999;
+                var groupOffsets = []; // 左上を(0,0)とした時の各単語の相対位置
+
+                // まず全体枠を取得
+                for (var i = 0; i < dragTargets.length; i++) {
+                    var r = YAHOO.util.Dom.getRegion(dragTargets[i]);
+                    if (r.left < minX) minX = r.left;
+                    if (r.right > maxX) maxX = r.right;
+                    if (r.top < minY) minY = r.top;
+                    if (r.bottom > maxY) maxY = r.bottom;
+                }
+                var groupW = maxX - minX;
+                var groupH = maxY - minY;
+
+                // 各単語の相対位置を保存（後で移動させるため）
+                for (var i = 0; i < dragTargets.length; i++) {
+                    var r = YAHOO.util.Dom.getRegion(dragTargets[i]);
+                    groupOffsets.push({
+                        el: dragTargets[i],
+                        offsetX: r.left - minX,
+                        offsetY: r.top - minY
+                    });
+                }
+
+                // 3. 探索設定
+                // 解答欄の境界
+                var areaMinX = 40;
+                var areaMaxX = 812;
+                var areaMinY = 160;
+                var areaMaxY = 550;
+
+                // 探索開始位置（ドロップ位置）
+                // ただし、ドロップ位置が既にエリア外ならエリア内にクランプ（引き戻し）してからスタート
+                var startX = minX;
+                var startY = minY;
+
+                if (startX < areaMinX) startX = areaMinX;
+                if (startX + groupW > areaMaxX) startX = areaMaxX - groupW;
+                if (startY < areaMinY) startY = areaMinY;
+                if (startY + groupH > areaMaxY) startY = areaMaxY - groupH;
+
+                // 4. スパイラル探索（総当たり）
+                // (x,y) が有効かチェックする関数
+                var isValidPosition = function(x, y) {
+                    // 解答欄の枠内チェック（ここは厳密に）
+                    if (x < areaMinX || x + groupW > areaMaxX) return false;
+                    if (y < areaMinY || y + groupH > areaMaxY) return false;
+
+                    // 衝突チェック用のマージン（px）
+                    // この値の分だけ、他の単語から離します
+                    var marginY = 20;
+
+                    var myBottom = y + groupH;
+
+                    for (var k = 0; k < staticRegions.length; k++) {
+                        var obs = staticRegions[k];
+
+                        // 障害物の領域を仮想的に広げて判定する（マージン確保）
+                        // 自分の領域 (x, y) が、(障害物 - margin) の範囲に入ってしまったらNG
+                        if (y < obs.bottom + marginY && myBottom > obs.top - marginY) {
+                            return false; // 近すぎる
+                        }
+                    }
+                    return true;
+                };
+                var foundX = startX;
+                var foundY = startY;
+                var isFound = false;
+
+                // まず現在地（補正後）をチェック
+                if (isValidPosition(startX, startY)) {
+                    foundX = startX;
+                    foundY = startY;
+                    isFound = true;
+                } else {
+                    // スパイラル探索開始
+                    // 半径rを広げながら、角度thetaを回して探す
+                    var step = 10; // 探索の粗さ（px）
+                    var maxRadius = 800; // 探索最大半径
+
+                    searchLoop:
+                        for (var r = 1; r * step < maxRadius; r++) {
+                            var dist = r * step;
+                            // 円周上をチェック（半径に応じて分割数を変えるとなお良いが固定でも可）
+                            var angleStep = 0.5; // ラジアン単位
+                            if (dist > 100) angleStep = 0.2; // 遠くへ行くほど細かく
+
+                            for (var theta = 0; theta < 2 * Math.PI; theta += angleStep) {
+                                var checkX = startX + dist * Math.cos(theta);
+                                var checkY = startY + dist * Math.sin(theta);
+
+                                if (isValidPosition(checkX, checkY)) {
+                                    foundX = checkX;
+                                    foundY = checkY;
+                                    isFound = true;
+                                    break searchLoop;
+                                }
+                            }
+                        }
+                }
+
+                // 見つからなかった場合（ほぼあり得ないが）、エリア左上に強制配置などの安全策
+                if (!isFound) {
+                    // 最終手段として空きスペース検索を左上からグリッドで行う
+                    gridLoop: for (var y = areaMinY; y < areaMaxY - groupH; y += 20) {
+                        for (var x = areaMinX; x < areaMaxX - groupW; x += 20) {
+                            if (isValidPosition(x, y)) {
+                                foundX = x;
+                                foundY = y;
+                                break gridLoop;
+                            }
+                        }
+                    }
+                }
+
+                // 5. 決定した位置に移動
+                for (var i = 0; i < groupOffsets.length; i++) {
+                    var item = groupOffsets[i];
+                    YAHOO.util.Dom.setX(item.el, foundX + item.offsetX);
+                    YAHOO.util.Dom.setY(item.el, foundY + item.offsetY);
+                }
+
+                // 6. 配列保存
+                var newArray = [];
+                for (var i = 0; i < Mylabels_ea.length; i++) {
+                    if (Mylabels_ea[i] && !draggedIds[Mylabels_ea[i].id]) newArray.push(Mylabels_ea[i]);
                 }
                 for (var i = 0; i < dragTargets.length; i++) newArray.push(dragTargets[i]);
 
@@ -1924,6 +2025,8 @@ $stmt->close();
         }
     }
 
+    // 挿入位置計算用関数（クラスター判定・距離制限版）
+    // 挿入位置計算用関数（修正版：ドラッグ領域考慮）
     // 挿入位置計算用関数（クラスター判定・距離制限版）
     function getTargetInfo(mouseX, mouseY, draggedLabels) {
         // 1. 静的単語の抽出
