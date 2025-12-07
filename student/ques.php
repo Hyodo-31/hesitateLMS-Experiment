@@ -192,6 +192,10 @@ $_SESSION["page"] = "ques";
     var region = 0;
     var URL = './' //サーバー用
     var attempt = 0; //20250514追加
+    var currentLang = "<?php echo $lang; ?>";
+
+    // ★追加: はじかれ判定用のグローバルフラグ
+    var GlobalRepelFlag = false;
 
     var JapaneseAnswer = "";
     var sorted_labels = new Array();
@@ -293,6 +297,7 @@ $stmt->close();
     //ロードイベント
     //body がloadされた時点で実行される。
     function ques_Load() {
+        window.resizeTo(885, 860);
         new Ajax.Request(URL + 'swrite.php', //こんにちはOOさん出力
             {
                 method: 'get',
@@ -1105,6 +1110,9 @@ $stmt->close();
             } else {
                 // --- 自由配置モード：▼▼▼ 修正箇所：総当たりスペース探索 ▼▼▼ ---
 
+                // ★追加: 判定前にフラグをリセット
+                GlobalRepelFlag = false;
+
                 // 1. 静的単語（障害物）リストを作成
                 var staticRegions = [];
                 var draggedIds = {};
@@ -1203,6 +1211,8 @@ $stmt->close();
                     foundY = startY;
                     isFound = true;
                 } else {
+                    // ★追加: ここに来るということは「置きたい場所に置けなかった（重なった）」のでRepel確定
+                    GlobalRepelFlag = true;
                     // スパイラル探索開始
                     // 半径rを広げながら、角度thetaを回して探す
                     var step = 10; // 探索の粗さ（px）
@@ -1865,6 +1875,18 @@ $stmt->close();
 
     //★★ラベルを離した時の作業。問題文の形を変えたりいろいろ
     function MyLabels_MouseUp(sender) {
+        // ▼▼▼ 【追加】ドラッグ対象のIDを最初にとっておく（グループ化対応） ▼▼▼
+        var currentDragIDs = [];
+        if (typeof MyControls !== 'undefined' && MyControls.length > 0) {
+            // グループ化（範囲選択）されている場合、その全てを記録
+            for (var i = 0; i < MyControls.length; i++) {
+                currentDragIDs.push(MyControls[i].id);
+            }
+        } else {
+            // 単体ドラッグの場合
+            currentDragIDs.push(sender.id);
+        }
+        var currentDragIDStr = currentDragIDs.join("#");
         // ▼▼▼ 追加: ドロップしたら赤枠は消す ▼▼▼
         if (typeof BPenTarget !== 'undefined') {
             BPenTarget.clear();
@@ -1958,64 +1980,61 @@ $stmt->close();
         var val_back_count = "";
         var val_norder = "";
 
-        // 対象となる単語ID群を取得（単体またはグループ）
-        var targetIDs = [];
-        if (MyControls.length > 0) {
-            for (var i = 0; i < MyControls.length; i++) targetIDs.push(MyControls[i].id);
-        } else {
-            targetIDs.push(sender.id);
-        }
-        var targetIDStr = targetIDs.join("#");
-
         // 1. Back判定 (解答欄(4)から問題提示欄(0)へ戻された場合)
         if (array_flag == 4 && array_flag2 == 0) {
-            val_back = targetIDStr;
+            val_back = currentDragIDStr; // ★保存済みIDを使用
             val_back_count = "1";
         }
 
-        // 2. 解答欄内(4)での処理 (Stick, NOrder)
+        // 2. 解答欄内(4)での処理
         if (array_flag2 == 4) {
             // A. NOrder (現在の順番)
             var sortedList = getSortedAnswerLabels();
             var orderList = [];
-            for (var i = 0; i < targetIDs.length; i++) {
+            // currentDragIDs を使用して順番を探す
+            for (var i = 0; i < currentDragIDs.length; i++) {
                 for (var k = 0; k < sortedList.length; k++) {
-                    if (sortedList[k].id == targetIDs[i]) {
-                        orderList.push(k + 1); // 1から始まる番号
+                    if (sortedList[k].id == currentDragIDs[i]) {
+                        orderList.push(k + 1);
                         break;
                     }
                 }
             }
             val_norder = orderList.join("#");
 
-            // B. Stick (グループ化判定)
-            // 現在のグループ構成を取得し、自分が含まれるグループが「複数単語」か確認
+            // B. Stick (解答欄にある「すべて」のグループを記録)
+            // ★ここが修正ポイント：ドラッグしたものだけでなく、残されたグループもすべて拾います
             var groups = getAnswerGroups(25, false);
+            var stickGroupsList = [];
+
             for (var g = 0; g < groups.length; g++) {
                 var members = groups[g].members;
-                var memberIds = [];
-                var isHit = false;
-                for (var m = 0; m < members.length; m++) {
-                    memberIds.push(members[m].id);
-                    // 自分のIDが含まれているか
-                    if (targetIDs.indexOf(members[m].id) !== -1) {
-                        isHit = true;
+                if (members.length > 1) { // 2個以上の塊のみ対象
+                    var memberIds = [];
+                    for (var m = 0; m < members.length; m++) {
+                        memberIds.push(members[m].id);
                     }
-                }
-                // 自分を含み、かつ2単語以上のグループであれば「くっついている」とみなす
-                if (isHit && memberIds.length > 1) {
-                    val_stick = memberIds.join("#");
-                    val_stick_count = "1";
-                    break;
+                    stickGroupsList.push(memberIds.join("#"));
                 }
             }
 
+            if (stickGroupsList.length > 0) {
+                // 複数のグループがある場合（例: "4#5" と "8#9"）、パイプ | 等でつなぐか、
+                // 今回の要件（4#5#6から離れて4#5になる）に合わせて、存在するグループ情報を送ります。
+                // DBのカラムが1つなら、まずは「#」で連結されたID群を格納します。
+                // 複数グループの同時記録形式が決まっていない場合、結合文字でつなぎます。
+                val_stick = stickGroupsList.join("|");
+                val_stick_count = stickGroupsList.length;
+            }
+
             // C. Repel (はじかれ判定)
-            // ※現状のコードでは「配置不可ではじく」処理がBack扱い(predictOverflow)になるか、
-            // MyLabelSort内で自動移動するため、明示的な「はじかれ」イベントを検知するには
-            // MyLabelSortの返り値チェック等の拡張が必要です。現在は枠のみ用意します。
-            // val_repel = ...
+            if (GlobalRepelFlag === true) {
+                val_repel = currentDragIDStr; // ★保存済みID（グループ全員）を使用
+                val_repel_count = "1";
+                GlobalRepelFlag = false;
+            }
         }
+
         // --- ▲▲▲ 追加ここまで ▲▲▲ ---
 
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
