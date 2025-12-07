@@ -267,8 +267,8 @@ $stmt->close();
 
 
     //ランダムに配列を並び替えるソース
-    Array.prototype.random = function () {
-        this.sort(function (a, b) {
+    Array.prototype.random = function() {
+        this.sort(function(a, b) {
             var i = Math.ceil(Math.random() * 100) % 2;
             if (i == 0) {
                 return -1;
@@ -280,7 +280,7 @@ $stmt->close();
     //-------------------------------------------------------------
     //配列に指定した値があるかチェック
     if (!Array.prototype.contains) {
-        Array.prototype.contains = function (value) {
+        Array.prototype.contains = function(value) {
             for (var i in this) {
                 if (this.hasOwnProperty(i) && this[i] === value) {
                     return true;
@@ -340,12 +340,12 @@ $stmt->close();
         new Ajax.Request(URL + 'linemouse.php', {
             method: 'get',
             onSuccess: getm,
-            onFailure: function (req) {
+            onFailure: function(req) {
                 getError(req, "linemouse.php")
             }
         });
 
-        function getm(res) { }
+        function getm(res) {}
         //======================================================
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
@@ -354,7 +354,7 @@ $stmt->close();
         new Ajax.Request(URL + 'load.php', {
             method: 'get',
             onSuccess: getOID,
-            onFailure: function (req) {
+            onFailure: function(req) {
                 getError(req, "load.php")
             },
             parameters: $params
@@ -374,7 +374,7 @@ $stmt->close();
         myCheck2(0);
         //===================
 
-        window.addEventListener('unload', function () {
+        window.addEventListener('unload', function() {
             // ewrite.phpを呼び出して、サーバー上の一時ファイルをデータベースに書き込む
             // この通信はページのクローズを妨げず、バックグラウンドで実行される
             navigator.sendBeacon('ewrite.php');
@@ -420,7 +420,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "getattempt.php")
                         },
                         parameters: $params_for_attempt
@@ -438,7 +438,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getResponse,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -459,7 +459,7 @@ $stmt->close();
                         {
                             method: 'get',
                             onSuccess: getStart,
-                            onFailure: function (req) {
+                            onFailure: function(req) {
                                 getError(req, "dbsyori.php")
                             },
                             parameters: $params
@@ -475,7 +475,7 @@ $stmt->close();
                             {
                                 method: 'get',
                                 onSuccess: getDivide,
-                                onFailure: function (req) {
+                                onFailure: function(req) {
                                     getError(req, "dbsyori.php")
                                 },
                                 parameters: $params
@@ -491,7 +491,7 @@ $stmt->close();
                                 {
                                     method: 'get',
                                     onSuccess: getFix,
-                                    onFailure: function (req) {
+                                    onFailure: function(req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -568,13 +568,13 @@ $stmt->close();
 
                                     el = YAHOO.util.Dom.getRegion(p);
                                     //イベントハンドラの追加
-                                    dd[i].onMouseDown = function (e) {
+                                    dd[i].onMouseDown = function(e) {
                                         MyLabels_MouseDown(this.getDragEl())
                                     }
-                                    dd[i].onMouseUp = function (e) {
+                                    dd[i].onMouseUp = function(e) {
                                         MyLabels_MouseUp(this.getDragEl())
                                     }
-                                    dd[i].onDrag = function (e) {
+                                    dd[i].onDrag = function(e) {
                                         MyLabels_MouseMove(this.getDragEl(), e)
                                     }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
@@ -599,7 +599,7 @@ $stmt->close();
                                 new Ajax.Request(URL + 'dbsyori.php', {
                                     method: 'get',
                                     onSuccess: getJapanese,
-                                    onFailure: function (req) {
+                                    onFailure: function(req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -629,7 +629,7 @@ $stmt->close();
                                     new Ajax.Request(URL + 'dbsyori.php', {
                                         method: 'get',
                                         onSuccess: getSentence1,
-                                        onFailure: function (req) {
+                                        onFailure: function(req) {
                                             getError(req, "dbsyori.php")
                                         },
                                         parameters: $params
@@ -648,7 +648,7 @@ $stmt->close();
                                             new Ajax.Request(URL + 'dbsyori.php', {
                                                 method: 'get',
                                                 onSuccess: getSentence2,
-                                                onFailure: function (req) {
+                                                onFailure: function(req) {
                                                     getError(req, "dbsyori.php")
                                                 },
                                                 parameters: $params
@@ -942,7 +942,7 @@ $stmt->close();
         }
 
         // X座標順にソート
-        candidates.sort(function (a, b) {
+        candidates.sort(function(a, b) {
             return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
         });
 
@@ -1048,7 +1048,7 @@ $stmt->close();
                         if (!isDrag) otherCandidates.push(lbl);
                     }
                 }
-                otherCandidates.sort(function (a, b) {
+                otherCandidates.sort(function(a, b) {
                     return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
                 });
 
@@ -1164,7 +1164,7 @@ $stmt->close();
 
                 // 4. スパイラル探索（総当たり）
                 // (x,y) が有効かチェックする関数
-                var isValidPosition = function (x, y) {
+                var isValidPosition = function(x, y) {
                     // 解答欄の枠内チェック（ここは厳密に）
                     if (x < areaMinX || x + groupW > areaMaxX) return false;
                     if (y < areaMinY || y + groupH > areaMaxY) return false;
@@ -1209,24 +1209,24 @@ $stmt->close();
                     var maxRadius = 800; // 探索最大半径
 
                     searchLoop:
-                    for (var r = 1; r * step < maxRadius; r++) {
-                        var dist = r * step;
-                        // 円周上をチェック（半径に応じて分割数を変えるとなお良いが固定でも可）
-                        var angleStep = 0.5; // ラジアン単位
-                        if (dist > 100) angleStep = 0.2; // 遠くへ行くほど細かく
+                        for (var r = 1; r * step < maxRadius; r++) {
+                            var dist = r * step;
+                            // 円周上をチェック（半径に応じて分割数を変えるとなお良いが固定でも可）
+                            var angleStep = 0.5; // ラジアン単位
+                            if (dist > 100) angleStep = 0.2; // 遠くへ行くほど細かく
 
-                        for (var theta = 0; theta < 2 * Math.PI; theta += angleStep) {
-                            var checkX = startX + dist * Math.cos(theta);
-                            var checkY = startY + dist * Math.sin(theta);
+                            for (var theta = 0; theta < 2 * Math.PI; theta += angleStep) {
+                                var checkX = startX + dist * Math.cos(theta);
+                                var checkY = startY + dist * Math.sin(theta);
 
-                            if (isValidPosition(checkX, checkY)) {
-                                foundX = checkX;
-                                foundY = checkY;
-                                isFound = true;
-                                break searchLoop;
+                                if (isValidPosition(checkX, checkY)) {
+                                    foundX = checkX;
+                                    foundY = checkY;
+                                    isFound = true;
+                                    break searchLoop;
+                                }
                             }
                         }
-                    }
                 }
 
                 // 見つからなかった場合（ほぼあり得ないが）、エリア左上に強制配置などの安全策
@@ -1271,7 +1271,7 @@ $stmt->close();
         var hoveredLabel = this; // マウスが乗っているラベル
 
         // ラベルが解答欄にあるかチェック
-        var isInAnswerArea = Mylabels_ea.some(function (label) {
+        var isInAnswerArea = Mylabels_ea.some(function(label) {
             return label.id === hoveredLabel.id;
         });
 
@@ -1491,11 +1491,11 @@ $stmt->close();
             '&lang=' + encodeURIComponent(testLangType);
         new Ajax.Request(URL + 'tmpfile.php', {
             method: 'get',
-            onSuccess: function (req) {
+            onSuccess: function(req) {
                 document.getElementById("msg").innerHTML = req.responseText;
                 Mld = false;
             },
-            onFailure: function () {
+            onFailure: function() {
                 alert("失敗d");
             },
             parameters: $params
@@ -1578,7 +1578,7 @@ $stmt->close();
         if (Mylabels_ea.length === 0) return;
 
         // 1. 座標順にソート
-        var sorted = Mylabels_ea.slice(0).sort(function (a, b) {
+        var sorted = Mylabels_ea.slice(0).sort(function(a, b) {
             var rA = YAHOO.util.Dom.getRegion(a);
             var rB = YAHOO.util.Dom.getRegion(b);
             if (Math.abs(rA.top - rB.top) > 15) return rA.top - rB.top;
@@ -1699,7 +1699,7 @@ $stmt->close();
             }
         }
 
-        staticLabels.sort(function (a, b) {
+        staticLabels.sort(function(a, b) {
             var rA = YAHOO.util.Dom.getRegion(a);
             var rB = YAHOO.util.Dom.getRegion(b);
             if (Math.abs(rA.top - rB.top) > 15) return rA.top - rB.top;
@@ -1789,12 +1789,13 @@ $stmt->close();
     // ======================= ▼▼▼ 新規追加: オーバーフロー予測関数 ▼▼▼ =======================
     function predictOverflow(sender) {
         var limitRight = 812; // 解答欄の右端座標
-        var gap = 15;         // 単語間の隙間
-        var snapDist = 50;    // 吸着判定距離
+        var gap = 15; // 単語間の隙間
+        var snapDist = 50; // 吸着判定距離
 
         // 1. ドラッグしている対象（単体またはグループ）の総幅を計算
         var targets = (MyControls.length > 0) ? MyControls : [sender];
-        var minX = 99999, maxX = -99999;
+        var minX = 99999,
+            maxX = -99999;
         for (var i = 0; i < targets.length; i++) {
             var r = YAHOO.util.Dom.getRegion(targets[i]);
             if (r.left < minX) minX = r.left;
@@ -1948,6 +1949,75 @@ $stmt->close();
         $Mouse_Data["Label"] = "";
         Mouse_Num += 1;
 
+        // --- ▼▼▼ 追加: 7つの新カラム用データ生成 ▼▼▼ ---
+        var val_stick = "";
+        var val_stick_count = "";
+        var val_repel = "";
+        var val_repel_count = "";
+        var val_back = "";
+        var val_back_count = "";
+        var val_norder = "";
+
+        // 対象となる単語ID群を取得（単体またはグループ）
+        var targetIDs = [];
+        if (MyControls.length > 0) {
+            for (var i = 0; i < MyControls.length; i++) targetIDs.push(MyControls[i].id);
+        } else {
+            targetIDs.push(sender.id);
+        }
+        var targetIDStr = targetIDs.join("#");
+
+        // 1. Back判定 (解答欄(4)から問題提示欄(0)へ戻された場合)
+        if (array_flag == 4 && array_flag2 == 0) {
+            val_back = targetIDStr;
+            val_back_count = "1";
+        }
+
+        // 2. 解答欄内(4)での処理 (Stick, NOrder)
+        if (array_flag2 == 4) {
+            // A. NOrder (現在の順番)
+            var sortedList = getSortedAnswerLabels();
+            var orderList = [];
+            for (var i = 0; i < targetIDs.length; i++) {
+                for (var k = 0; k < sortedList.length; k++) {
+                    if (sortedList[k].id == targetIDs[i]) {
+                        orderList.push(k + 1); // 1から始まる番号
+                        break;
+                    }
+                }
+            }
+            val_norder = orderList.join("#");
+
+            // B. Stick (グループ化判定)
+            // 現在のグループ構成を取得し、自分が含まれるグループが「複数単語」か確認
+            var groups = getAnswerGroups(25, false);
+            for (var g = 0; g < groups.length; g++) {
+                var members = groups[g].members;
+                var memberIds = [];
+                var isHit = false;
+                for (var m = 0; m < members.length; m++) {
+                    memberIds.push(members[m].id);
+                    // 自分のIDが含まれているか
+                    if (targetIDs.indexOf(members[m].id) !== -1) {
+                        isHit = true;
+                    }
+                }
+                // 自分を含み、かつ2単語以上のグループであれば「くっついている」とみなす
+                if (isHit && memberIds.length > 1) {
+                    val_stick = memberIds.join("#");
+                    val_stick_count = "1";
+                    break;
+                }
+            }
+
+            // C. Repel (はじかれ判定)
+            // ※現状のコードでは「配置不可ではじく」処理がBack扱い(predictOverflow)になるか、
+            // MyLabelSort内で自動移動するため、明示的な「はじかれ」イベントを検知するには
+            // MyLabelSortの返り値チェック等の拡張が必要です。現在は枠のみ用意します。
+            // val_repel = ...
+        }
+        // --- ▲▲▲ 追加ここまで ▲▲▲ ---
+
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
             '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
             '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
@@ -1956,7 +2026,16 @@ $stmt->close();
             '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
+            // 新規追加パラメータ (param9 - param15)
+            '&param9=' + encodeURIComponent(val_stick) +
+            '&param10=' + encodeURIComponent(val_stick_count) +
+            '&param11=' + encodeURIComponent(val_repel) +
+            '&param12=' + encodeURIComponent(val_repel_count) +
+            '&param13=' + encodeURIComponent(val_back) +
+            '&param14=' + encodeURIComponent(val_back_count) +
+            '&param15=' + encodeURIComponent(val_norder) +
             '&lang=' + encodeURIComponent(testLangType);
+
         new Ajax.Request(URL + 'tmpfile.php', {
             method: 'get',
             onSuccess: getA,
@@ -2140,7 +2219,7 @@ $stmt->close();
         };
 
         // 3. X座標でソート
-        rowLabels.sort(function (a, b) {
+        rowLabels.sort(function(a, b) {
             return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
         });
 
@@ -2294,7 +2373,7 @@ $stmt->close();
         }
 
         // 2. まずは視覚的な読み順（上から下、左から右）でソートして整列させる
-        targets.sort(function (a, b) {
+        targets.sort(function(a, b) {
             var rA = YAHOO.util.Dom.getRegion(a);
             var rB = YAHOO.util.Dom.getRegion(b);
             // 高さのズレが20px未満なら同じ行とみなす
@@ -2347,7 +2426,7 @@ $stmt->close();
 
         // 2. グループの「左端（left）」を比較して、小さい順（左→右）に並べ替え
         // これにより、行が違っても「左にある塊」から順に並びます
-        groups.sort(function (a, b) {
+        groups.sort(function(a, b) {
             return a.left - b.left;
         });
 
@@ -2439,7 +2518,7 @@ $stmt->close();
             parameters: $params
         });
         //▲マウスデータの取得
-        function getA(req) { }
+        function getA(req) {}
 
         function getE(req) {
             alert("失敗g");
@@ -2895,7 +2974,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getwriteuser_progress,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -3607,11 +3686,11 @@ $stmt->close();
 
     <script type="text/javascript">
         function disableSelection(target) {
-            if (typeof target.onselectstart != "undefined") target.onselectstart = function () {
+            if (typeof target.onselectstart != "undefined") target.onselectstart = function() {
                 return false
             }
             else if (typeof target.style.MozUserSelect != "undefined") target.style.MozUserSelect = "none"
-            else target.onmousedown = function () {
+            else target.onmousedown = function() {
                 return false
             }
             target.style.cursor = "default"
