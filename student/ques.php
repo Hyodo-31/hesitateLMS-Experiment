@@ -293,6 +293,7 @@ $stmt->close();
     //ロードイベント
     //body がloadされた時点で実行される。
     function ques_Load() {
+        window.resizeTo(885, 860);
         new Ajax.Request(URL + 'swrite.php', //こんにちはOOさん出力
             {
                 method: 'get',
@@ -1482,6 +1483,37 @@ $stmt->close();
         $Mouse_Data["Label"] = DLabel;
         Mouse_Num += 1;
 
+        // ======================= ▼▼▼ 追加: 残存グループの記録処理 ▼▼▼ =======================
+        var val_stick = "";
+        var val_stick_count = "";
+        var val_repel = ""; // MouseDown時は空
+        var val_repel_count = "";
+        var val_back = ""; // MouseDown時は空
+        var val_back_count = "";
+        var val_norder = ""; // MouseDown時は空
+
+        // 解答欄からドラッグされた場合、残った単語たちがグループを形成しているか確認
+        if (array_flag == 4) {
+            // 第2引数 true で「ドラッグ中の単語(MyControls/DragL)を除外」してグループ判定を行う
+            var groups = getAnswerGroups(25, true); 
+            var stickIds = [];
+
+            for (var g = 0; g < groups.length; g++) {
+                // 2単語以上の塊になっているものだけを抽出
+                if (groups[g].members.length > 1) {
+                    for(var m = 0; m < groups[g].members.length; m++){
+                        stickIds.push(groups[g].members[m].id);
+                    }
+                }
+            }
+
+            if (stickIds.length > 0) {
+                val_stick = stickIds.join("#");
+                val_stick_count = "1";
+            }
+        }
+        // ======================= ▲▲▲ 追加ここまで ▲▲▲ =======================
+
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
             '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
             '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
@@ -1490,6 +1522,13 @@ $stmt->close();
             '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
+            '&param9=' + encodeURIComponent(val_stick) +        // register_stick
+            '&param10=' + encodeURIComponent(val_stick_count) + // register_stick_count
+            '&param11=' + encodeURIComponent(val_repel) +       // repel
+            '&param12=' + encodeURIComponent(val_repel_count) + // repel_count
+            '&param13=' + encodeURIComponent(val_back) +        // back
+            '&param14=' + encodeURIComponent(val_back_count) +  // back_count
+            '&param15=' + encodeURIComponent(val_norder) +      // NOrder
             '&lang=' + encodeURIComponent(testLangType);
         new Ajax.Request(URL + 'tmpfile.php', {
             method: 'get',
