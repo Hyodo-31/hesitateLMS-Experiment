@@ -199,9 +199,49 @@ $_SESSION["page"] = "ques";
     // ▼▼▼ 修正: ドラッグ開始時の状態保持用変数 ▼▼▼
     var DragStartGroupState = null; // { id: 1, members: "1#3#4#8" }
 
-    // ======================= ▼▼▼ 修正版3: ドラッグ前後比較版 ▼▼▼ =======================
-    // ======================= ▼▼▼ 修正版4: 不要なカウントアップ防止版 ▼▼▼ =======================
-    // ======================= ▼▼▼ 修正版5: 座標取得機能追加版 ▼▼▼ =======================
+    // ▼▼▼ 追加: 正解ID順序保持用 ▼▼▼
+    var CorrectIDSequence = [];
+
+    // 正解文(Answer)と単語リスト(Mylabels2)から、正しいIDの並び順を生成する関数
+    function generateCorrectIDSequence() {
+        if (!Answer || Mylabels2.length === 0) return;
+
+        // 1. 正解文を単語に分解（句読点を除去して小文字化）
+        // ※厳密な判定のため、文末記号などは除去します
+        var cleanAnswer = Answer.replace(/[.,?!:;)'’]+/g, "").trim();
+        var ansWords = cleanAnswer.split(/\s+/);
+
+        var seq = [];
+        var usedIds = {}; // 重複単語対策（一度使ったIDは使わない）
+
+        // 2. 単語ごとにIDを割り当てる
+        for (var i = 0; i < ansWords.length; i++) {
+            var targetWord = ansWords[i].toLowerCase();
+            var foundId = -1;
+
+            // Mylabels2（初期配置のコピー）から検索
+            for (var j = 0; j < Mylabels2.length; j++) {
+                if (usedIds[Mylabels2[j].id]) continue; // 使用済みはスキップ
+
+                // HTMLタグが含まれる可能性を考慮し innerHTML を使うが、テキストのみ抽出が望ましい
+                // ここでは単純比較とします
+                var labelText = Mylabels2[j].innerHTML.replace(/[.,?!:;)'’]+/g, "").trim().toLowerCase();
+
+                if (labelText === targetWord) {
+                    foundId = Mylabels2[j].id;
+                    usedIds[foundId] = true;
+                    break;
+                }
+            }
+
+            if (foundId !== -1) {
+                seq.push(foundId);
+            }
+        }
+        CorrectIDSequence = seq;
+        console.log("Correct ID Sequence:", CorrectIDSequence);
+    }
+    // ======================= ▼▼▼ 修正版7: 並び順考慮の完全一致判定版 ▼▼▼ =======================
     /**
      * @param {boolean} isMouseDown 
      * @param {Array} draggedIDs - ドラッグ中の単語IDの配列
@@ -209,7 +249,7 @@ $_SESSION["page"] = "ques";
     function calculateStickParams(isMouseDown, draggedIDs) {
         if (!draggedIDs) draggedIDs = [];
 
-        // ■■■ MouseDown時: 崩れる前の状態を保存 (same判定用) ■■■
+        // ■■■ MouseDown時: 崩れる前の状態を保存 ■■■
         if (isMouseDown && draggedIDs.length > 0) {
             DragStartGroupState = null;
             for (var k = 0; k < LastGroupState.length; k++) {
@@ -224,7 +264,9 @@ $_SESSION["page"] = "ques";
                 if (isHit) {
                     DragStartGroupState = {
                         id: LastGroupState[k].id,
-                        members: LastGroupState[k].members
+                        members: LastGroupState[k].members,
+                        // ▼▼▼ 追加: 視覚的な並び順も保存 ▼▼▼
+                        visualMembers: LastGroupState[k].visualMembers
                     };
                     break;
                 }
@@ -245,24 +287,29 @@ $_SESSION["page"] = "ques";
         var targetVer = "";
         var targetSame = "";
         var targetCount = "";
-
-        // ★座標用変数 (初期値は空文字)
         var targetLeftX = "";
         var targetRightX = "";
         var targetY = "";
+        var targetIncorrect = "";
 
         var newGroupState = [];
         var usedOldIds = {};
 
         // --- A. 現在盤面にある群の処理 ---
         for (var i = 0; i < validClusters.length; i++) {
-            var membersArr = [];
-            // DOM要素配列も保持しておく（座標計算用）
-            var domElements = validClusters[i].members;
+            var domElements = validClusters[i].members; // 視覚的順序（左→右）のDOM配列
+            var membersArr = []; // ID管理用（ソートする）
+            var visualIds = [];  // 正誤判定 & 並び順判定用（ソートしない）
 
             for (var m = 0; m < domElements.length; m++) {
                 membersArr.push(domElements[m].id);
+                visualIds.push(domElements[m].id);
             }
+
+            // 視覚的順序の文字列を作成
+            var visualMembersStr = visualIds.join("#");
+
+            // ID管理用はソートする
             membersArr.sort(function (a, b) { return a - b });
             var membersStr = membersArr.join("#");
 
@@ -281,12 +328,18 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // 1. 完全一致チェック
+            // 1. 完全一致チェック (ID構成が同じか)
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
                 if (LastGroupState[k].members === membersStr) {
                     assignedID = LastGroupState[k].id;
+
                     if (isTarget) {
+                        // ターゲットの場合は操作があったのでバージョンアップ
+                        // ただし、もし「並び順」も変わっていないならバージョン維持すべきか？
+                        // 要件「stick_number2の記録前と後でregister_stick(ソート済)が同じ」場合でも
+                        // 1-3 -> 1-4 のように記録したいとのことだったので、インクリメントでOK
+                        // (same判定は別途 targetSame で行うため)
                         assignedVer = LastGroupState[k].ver + 1;
                     } else {
                         assignedVer = LastGroupState[k].ver;
@@ -331,41 +384,50 @@ $_SESSION["page"] = "ques";
             newGroupState.push({
                 id: assignedID,
                 ver: assignedVer,
-                members: membersStr
+                members: membersStr,
+                // ▼▼▼ 追加: 視覚的な順序も保存しておく ▼▼▼
+                visualMembers: visualMembersStr
             });
 
-            // 4. パラメータ出力用の判定
+            // 4. パラメータ出力
             if (isTarget || isUpdated) {
                 if (!isMouseDown || (isMouseDown && draggedIDs.length > 0)) {
                     targetID = assignedID;
                     targetVer = assignedVer;
                     targetCount = membersArr.length;
 
-                    // ■■■ MouseUp時: 復元判定 ■■■
+                    // ■■■ 復元判定 (stick_number_same) ■■■
                     if (!isMouseDown && DragStartGroupState) {
+                        // IDが同じ かつ ID構成(members)が同じ かつ ★視覚的並び順(visualMembers)も同じ
                         if (DragStartGroupState.id === assignedID &&
-                            DragStartGroupState.members === membersStr) {
+                            DragStartGroupState.members === membersStr &&
+                            DragStartGroupState.visualMembers === visualMembersStr) {
                             targetSame = "1";
                         }
                     }
 
-                    // ■■■ ★座標計算 ■■■
-                    // グループを構成する全単語のDOMから、左端(minX), 右端(maxX), Y座標を取得
+                    // 座標計算
                     var minX = 99999;
                     var maxX = -99999;
                     var sumY = 0;
-
                     for (var d = 0; d < domElements.length; d++) {
                         var region = YAHOO.util.Dom.getRegion(domElements[d]);
                         if (region.left < minX) minX = region.left;
                         if (region.right > maxX) maxX = region.right;
                         sumY += region.top;
                     }
-
                     targetLeftX = minX;
                     targetRightX = maxX;
-                    // Y座標は平均値、もしくは最初の要素のTopを採用（行は揃っている前提）
                     targetY = Math.round(sumY / domElements.length);
+
+                    // 不正解判定 (incorrect_stick)
+                    if (CorrectIDSequence.length > 0) {
+                        var currentSeqStr = "," + visualIds.join(",") + ",";
+                        var correctSeqStr = "," + CorrectIDSequence.join(",") + ",";
+                        if (correctSeqStr.indexOf(currentSeqStr) === -1) {
+                            targetIncorrect = "1";
+                        }
+                    }
                 }
             }
         }
@@ -397,10 +459,10 @@ $_SESSION["page"] = "ques";
             num2: (targetID !== "") ? targetVer : "",
             same: (targetSame !== "") ? targetSame : "",
             count: (targetCount !== "") ? targetCount : "",
-            // ★座標情報
             leftX: (targetLeftX !== "") ? targetLeftX : "",
             rightX: (targetRightX !== "") ? targetRightX : "",
-            topY: (targetY !== "") ? targetY : ""
+            topY: (targetY !== "") ? targetY : "",
+            incorrect: (targetIncorrect !== "") ? targetIncorrect : ""
         };
     }
 
@@ -893,6 +955,7 @@ $stmt->close();
                                     }
                                 }
                                 // ======================= ▲▲▲ 修正点 2/3 ▲▲▲ =======================
+                                generateCorrectIDSequence();
                                 Mouse_Flag = true;
                             } //Fix関数ここまで--------------------------------------------------------
                         }
@@ -1815,6 +1878,7 @@ $stmt->close();
             '&param22=' + encodeURIComponent(stickInfo.leftX) +
             '&param23=' + encodeURIComponent(stickInfo.rightX) +
             '&param24=' + encodeURIComponent(stickInfo.topY) +
+            '&param25=' + encodeURIComponent(stickInfo.incorrect) +
             '&lang=' + encodeURIComponent(testLangType);
         // 注意: param9, param10はtmpfile.php側で固定でNULLを入れる仕様のようなので、
         // ここではJSから値を送ってもtmpfile.php側で無視されるか、既存コードに合わせて空を送ります。
@@ -2391,6 +2455,7 @@ $stmt->close();
             '&param22=' + encodeURIComponent(stickInfo.leftX) +
             '&param23=' + encodeURIComponent(stickInfo.rightX) +
             '&param24=' + encodeURIComponent(stickInfo.topY) +
+            '&param25=' + encodeURIComponent(stickInfo.incorrect) +
             '&lang=' + encodeURIComponent(testLangType);
 
         new Ajax.Request(URL + 'tmpfile.php', {
