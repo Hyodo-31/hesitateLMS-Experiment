@@ -39,6 +39,10 @@ $p19 = getParam('param19'); // back (旧param16)
 $p20 = getParam('param20'); // back_count (旧param17)
 $p21 = getParam('param21'); // NOrder (旧param18)
 
+$p22 = getParam('param22'); // left_groupword_X
+$p23 = getParam('param23'); // right_groupword_X
+$p24 = getParam('param24'); // groupword_Y
+
 // SQL文の構築
 $str = "INSERT INTO " . $FName2 . " VALUES("
 	. $MemberID . ","
@@ -65,7 +69,10 @@ $str = "INSERT INTO " . $FName2 . " VALUES("
 	. $p18 . "," // repel_count
 	. $p19 . "," // back
 	. $p20 . "," // back_count
-	. $p21       // NOrder
+	. $p21 . "," // NOrder
+	. $p22 . "," // left_groupword_X
+	. $p23 . "," // right_groupword_X
+	. $p24       // groupword_Y
 	. ")";
 
 //ファイル書き込みコード

@@ -201,6 +201,7 @@ $_SESSION["page"] = "ques";
 
     // ======================= ▼▼▼ 修正版3: ドラッグ前後比較版 ▼▼▼ =======================
     // ======================= ▼▼▼ 修正版4: 不要なカウントアップ防止版 ▼▼▼ =======================
+    // ======================= ▼▼▼ 修正版5: 座標取得機能追加版 ▼▼▼ =======================
     /**
      * @param {boolean} isMouseDown 
      * @param {Array} draggedIDs - ドラッグ中の単語IDの配列
@@ -245,14 +246,22 @@ $_SESSION["page"] = "ques";
         var targetSame = "";
         var targetCount = "";
 
+        // ★座標用変数 (初期値は空文字)
+        var targetLeftX = "";
+        var targetRightX = "";
+        var targetY = "";
+
         var newGroupState = [];
         var usedOldIds = {};
 
         // --- A. 現在盤面にある群の処理 ---
         for (var i = 0; i < validClusters.length; i++) {
             var membersArr = [];
-            for (var m = 0; m < validClusters[i].members.length; m++) {
-                membersArr.push(validClusters[i].members[m].id);
+            // DOM要素配列も保持しておく（座標計算用）
+            var domElements = validClusters[i].members;
+
+            for (var m = 0; m < domElements.length; m++) {
+                membersArr.push(domElements[m].id);
             }
             membersArr.sort(function (a, b) { return a - b });
             var membersStr = membersArr.join("#");
@@ -261,8 +270,7 @@ $_SESSION["page"] = "ques";
             var assignedVer = 1;
             var isUpdated = false;
 
-            // ★今回の操作対象（ターゲット）かどうかを先に判定
-            // ドラッグ中の単語を含んでいるか？
+            // ターゲット判定
             var isTarget = false;
             if (draggedIDs.length > 0) {
                 for (var x = 0; x < membersArr.length; x++) {
@@ -278,23 +286,17 @@ $_SESSION["page"] = "ques";
                 if (usedOldIds[LastGroupState[k].id]) continue;
                 if (LastGroupState[k].members === membersStr) {
                     assignedID = LastGroupState[k].id;
-
-                    // ▼▼▼ 修正: 操作対象の場合のみバージョンアップする ▼▼▼
                     if (isTarget) {
-                        // 「戻した」操作などを記録するため +1
                         assignedVer = LastGroupState[k].ver + 1;
                     } else {
-                        // 関係ない群はバージョン維持
                         assignedVer = LastGroupState[k].ver;
                     }
-                    // ▲▲▲ 修正ここまで ▲▲▲
-
                     usedOldIds[assignedID] = true;
                     break;
                 }
             }
 
-            // 2. 部分一致チェック (構成変化は常にバージョンアップ)
+            // 2. 部分一致チェック
             if (assignedID === -1) {
                 for (var k = 0; k < LastGroupState.length; k++) {
                     if (usedOldIds[LastGroupState[k].id]) continue;
@@ -308,10 +310,9 @@ $_SESSION["page"] = "ques";
                     }
                     if (hasIntersection) {
                         assignedID = LastGroupState[k].id;
-                        assignedVer = LastGroupState[k].ver + 1; // 変化したので必ず+1
+                        assignedVer = LastGroupState[k].ver + 1;
                         usedOldIds[assignedID] = true;
                         isUpdated = true;
-                        // 部分一致で更新されたものは、実質的にターゲット（影響を受けた群）
                         isTarget = true;
                         break;
                     }
@@ -324,11 +325,9 @@ $_SESSION["page"] = "ques";
                 assignedID = GlobalGroupCounter;
                 assignedVer = 1;
                 isUpdated = true;
-                // 新規作成されたものもターゲットとみなす（初期配置や結合時）
                 if (draggedIDs.length > 0) isTarget = true;
             }
 
-            // 新しい状態リストに追加
             newGroupState.push({
                 id: assignedID,
                 ver: assignedVer,
@@ -336,21 +335,37 @@ $_SESSION["page"] = "ques";
             });
 
             // 4. パラメータ出力用の判定
-            // isTargetフラグ または isUpdatedフラグ が立っているものを今回の出力対象とする
             if (isTarget || isUpdated) {
-                // 明示的にドラッグIDが含まれていなくても、初期ロード時などは isUpdated で出力させる
                 if (!isMouseDown || (isMouseDown && draggedIDs.length > 0)) {
                     targetID = assignedID;
                     targetVer = assignedVer;
                     targetCount = membersArr.length;
 
-                    // ■■■ MouseUp時: 復元判定 (stick_number_same) ■■■
+                    // ■■■ MouseUp時: 復元判定 ■■■
                     if (!isMouseDown && DragStartGroupState) {
                         if (DragStartGroupState.id === assignedID &&
                             DragStartGroupState.members === membersStr) {
                             targetSame = "1";
                         }
                     }
+
+                    // ■■■ ★座標計算 ■■■
+                    // グループを構成する全単語のDOMから、左端(minX), 右端(maxX), Y座標を取得
+                    var minX = 99999;
+                    var maxX = -99999;
+                    var sumY = 0;
+
+                    for (var d = 0; d < domElements.length; d++) {
+                        var region = YAHOO.util.Dom.getRegion(domElements[d]);
+                        if (region.left < minX) minX = region.left;
+                        if (region.right > maxX) maxX = region.right;
+                        sumY += region.top;
+                    }
+
+                    targetLeftX = minX;
+                    targetRightX = maxX;
+                    // Y座標は平均値、もしくは最初の要素のTopを採用（行は揃っている前提）
+                    targetY = Math.round(sumY / domElements.length);
                 }
             }
         }
@@ -381,7 +396,11 @@ $_SESSION["page"] = "ques";
             num1: (targetID !== "") ? targetID : "",
             num2: (targetID !== "") ? targetVer : "",
             same: (targetSame !== "") ? targetSame : "",
-            count: (targetCount !== "") ? targetCount : ""
+            count: (targetCount !== "") ? targetCount : "",
+            // ★座標情報
+            leftX: (targetLeftX !== "") ? targetLeftX : "",
+            rightX: (targetRightX !== "") ? targetRightX : "",
+            topY: (targetY !== "") ? targetY : ""
         };
     }
 
@@ -1793,8 +1812,10 @@ $stmt->close();
             '&param19=' + encodeURIComponent(val_back) +        // 旧 param16 (back)
             '&param20=' + encodeURIComponent(val_back_count) +  // 旧 param17 (back_count)
             '&param21=' + encodeURIComponent(val_norder) +      // 旧 param18 (NOrder)
+            '&param22=' + encodeURIComponent(stickInfo.leftX) +
+            '&param23=' + encodeURIComponent(stickInfo.rightX) +
+            '&param24=' + encodeURIComponent(stickInfo.topY) +
             '&lang=' + encodeURIComponent(testLangType);
-
         // 注意: param9, param10はtmpfile.php側で固定でNULLを入れる仕様のようなので、
         // ここではJSから値を送ってもtmpfile.php側で無視されるか、既存コードに合わせて空を送ります。
         // 今回の要件では「param11,12,13」を追加したいとのことなので、
@@ -2367,6 +2388,9 @@ $stmt->close();
             '&param19=' + encodeURIComponent(val_back) +        // 旧param16
             '&param20=' + encodeURIComponent(val_back_count) +  // 旧param17
             '&param21=' + encodeURIComponent(val_norder) +      // 旧param18
+            '&param22=' + encodeURIComponent(stickInfo.leftX) +
+            '&param23=' + encodeURIComponent(stickInfo.rightX) +
+            '&param24=' + encodeURIComponent(stickInfo.topY) +
             '&lang=' + encodeURIComponent(testLangType);
 
         new Ajax.Request(URL + 'tmpfile.php', {
