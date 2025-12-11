@@ -19,13 +19,20 @@ function getParam($key)
 	}
 }
 
-$p9  = getParam('param9');  // register_stick
+$p9 = getParam('param9');  // register_stick
 $p10 = getParam('param10'); // register_stick_count
-$p11 = getParam('param11'); // repel
-$p12 = getParam('param12'); // repel_count
-$p13 = getParam('param13'); // back
-$p14 = getParam('param14'); // back_count
-$p15 = getParam('param15'); // NOrder
+
+// ★新規追加 (param11, 12, 13)
+$p11 = getParam('param11'); // stick_now
+$p12 = getParam('param12'); // stick_number1
+$p13 = getParam('param13'); // stick_number2
+
+// ★シフトした既存項目 (param14 ～ 18)
+$p14 = getParam('param14'); // repel (旧param11)
+$p15 = getParam('param15'); // repel_count (旧param12)
+$p16 = getParam('param16'); // back (旧param13)
+$p17 = getParam('param17'); // back_count (旧param14)
+$p18 = getParam('param18'); // NOrder (旧param15)
 
 // SQL文の構築
 // param1~8は既存通り、attemptの後ろに新しい7カラムを追加
@@ -42,14 +49,21 @@ $str = "INSERT INTO " . $FName2 . " VALUES("
 	. $attempt . ","
 	. $p9 . ","
 	. $p10 . ","
-	. $p11 . ","
-	. $p12 . ","
-	. $p13 . ","
-	. $p14 . ","
-	. $p15
+	// ▼▼▼ ここに新規追加分を挿入 ▼▼▼
+	. $p11 . "," // stick_now
+	. $p12 . "," // stick_number1
+	. $p13 . "," // stick_number2
+    // ▲▲▲ 追加ここまで ▲▲▲
+	. $p14 . "," // repel
+	. $p15 . "," // repel_count
+	. $p16 . "," // back
+	. $p17 . "," // back_count
+	. $p18       // NOrder
 	. ")";
 
 //ファイル書き込みコード
 $TempFileName = sys_get_temp_dir() . "/tem" . $MemberID . ".tmp";
 file_put_contents($TempFileName, $str . "\n", FILE_APPEND | LOCK_EX);
 echo file_get_contents($TempFileName);
+
+?>

@@ -192,6 +192,127 @@ $_SESSION["page"] = "ques";
     var region = 0;
     var URL = './' //サーバー用
     var attempt = 0; //20250514追加
+    
+    // ======================= ▼▼▼ 新規追加: 単語群状態管理用 ▼▼▼ =======================
+    var GlobalGroupCounter = 0; // 単語群IDの採番用カウンタ
+    var LastGroupState = [];    // 直前の単語群の状態 [{id: 1, ver: 1, members: "1#2"}]
+
+    /**
+     * 2語以上の単語群のみを対象に stick_now, stick_number1, stick_number2 を計算する
+     * @param {boolean} isMouseDown - マウスダウン時かどうか
+     * @returns {Object} { now: count, num1: id, num2: ver }
+     */
+    function calculateStickParams(isMouseDown) {
+        // 1. まず全てのグループを取得
+        var allGroups = getAnswerGroups(25, isMouseDown);
+
+        // 2. 「2語以上」のグループ（クラスター）のみを抽出
+        var validClusters = [];
+        for (var i = 0; i < allGroups.length; i++) {
+            if (allGroups[i].members.length >= 2) {
+                validClusters.push(allGroups[i]);
+            }
+        }
+
+        // --- A. stick_now (2語以上の単語群の個数) ---
+        // 1個もなければ0になります
+        var stick_now = validClusters.length;
+
+        // --- B. stick_number (IDとバージョン管理) ---
+        var targetID = "";
+        var targetVer = "";
+
+        var newGroupState = [];
+        var usedOldIds = {}; // ID重複防止用
+
+        // 有効なクラスターそれぞれについて、過去の状態と比較
+        for (var i = 0; i < validClusters.length; i++) {
+            var membersArr = [];
+            for (var m = 0; m < validClusters[i].members.length; m++) {
+                membersArr.push(validClusters[i].members[m].id);
+            }
+            // ID順にソートして文字列化 "1#2"
+            membersArr.sort(function (a, b) { return a - b });
+            var membersStr = membersArr.join("#");
+
+            var assignedID = -1;
+            var assignedVer = 1;
+            var isUpdated = false;
+
+            // 1. 完全一致チェック (移動のみ。ID維持、Ver維持)
+            for (var k = 0; k < LastGroupState.length; k++) {
+                if (usedOldIds[LastGroupState[k].id]) continue;
+                if (LastGroupState[k].members === membersStr) {
+                    assignedID = LastGroupState[k].id;
+                    assignedVer = LastGroupState[k].ver;
+                    usedOldIds[assignedID] = true;
+                    break;
+                }
+            }
+
+            // 2. 部分一致チェック (構成変化。ID維持、Ver更新)
+            // 以前のクラスターに含まれていた単語を含んでいれば同一とみなす
+            if (assignedID === -1) {
+                for (var k = 0; k < LastGroupState.length; k++) {
+                    if (usedOldIds[LastGroupState[k].id]) continue;
+
+                    var oldMembers = LastGroupState[k].members.split("#");
+                    var hasIntersection = false;
+                    for (var x = 0; x < membersArr.length; x++) {
+                        if (oldMembers.indexOf(membersArr[x]) !== -1) {
+                            hasIntersection = true;
+                            break;
+                        }
+                    }
+
+                    if (hasIntersection) {
+                        assignedID = LastGroupState[k].id;
+                        assignedVer = LastGroupState[k].ver + 1; // 更新回数カウントアップ
+                        usedOldIds[assignedID] = true;
+                        isUpdated = true;
+                        break;
+                    }
+                }
+            }
+
+            // 3. 新規作成 (新しい単語群の誕生。新ID、Ver1)
+            if (assignedID === -1) {
+                GlobalGroupCounter++;
+                assignedID = GlobalGroupCounter;
+                assignedVer = 1;
+                isUpdated = true;
+            }
+
+            // 次の状態として保存
+            newGroupState.push({
+                id: assignedID,
+                ver: assignedVer,
+                members: membersStr
+            });
+
+            // 今回更新または新規作成されたものを記録対象とする
+            // ※注意: 単語群が分裂して2つの有効な群になった場合、ループの後の方のものが上書きされますが、
+            //  操作の主対象が明確なMouseUp/Downイベント内であれば概ね期待通り動作します。
+            if (isUpdated) {
+                targetID = assignedID;
+                targetVer = assignedVer;
+            }
+        }
+
+        // 状態更新
+        LastGroupState = newGroupState;
+
+        // 結果返却
+        // 単語群が崩壊して1語以下になった場合は、validClustersループに入らないため
+        // targetID は "" のままとなり、number1, number2 は記録されません。
+        // stick_now は正しく「残った群の数」を返します。
+        return {
+            now: stick_now,
+            num1: (targetID !== "") ? targetID : "",
+            num2: (targetID !== "") ? targetVer : ""
+        };
+    }
+    // ======================= ▲▲▲ 修正版ここまで ▲▲▲ =======================
 
     var JapaneseAnswer = "";
     var sorted_labels = new Array();
@@ -1550,8 +1671,8 @@ $stmt->close();
             }
         }
         // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
+        var stickInfo = calculateStickParams(true);
 
-        // パラメータを15個送るように修正
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
             '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
             '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
@@ -1560,15 +1681,24 @@ $stmt->close();
             '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
-            // ▼追加パラメータ▼
-            '&param9=' + encodeURIComponent(val_stick) +        // register_stick
-            '&param10=' + encodeURIComponent(val_stick_count) + // register_stick_count
-            '&param11=' + encodeURIComponent(val_repel) +       // repel
-            '&param12=' + encodeURIComponent(val_repel_count) + // repel_count
-            '&param13=' + encodeURIComponent(val_back) +        // back
-            '&param14=' + encodeURIComponent(val_back_count) +  // back_count
-            '&param15=' + encodeURIComponent(val_norder) +      // NOrder
+            // --- 新規追加パラメータ (11, 12, 13) ---
+            '&param9=' + encodeURIComponent("") +  // 予備(param9) - DB構造維持のため空
+            '&param10=' + encodeURIComponent("") + // 予備(param10) - DB構造維持のため空
+            '&param11=' + encodeURIComponent(stickInfo.now) +  // stick_now
+            '&param12=' + encodeURIComponent(stickInfo.num1) + // stick_number1
+            '&param13=' + encodeURIComponent(stickInfo.num2) + // stick_number2
+            // --- 既存パラメータを後ろへずらす ---
+            '&param14=' + encodeURIComponent(val_repel) +       // 旧 param11 (repel)
+            '&param15=' + encodeURIComponent(val_repel_count) + // 旧 param12 (repel_count)
+            '&param16=' + encodeURIComponent(val_back) +        // 旧 param13 (back)
+            '&param17=' + encodeURIComponent(val_back_count) +  // 旧 param14 (back_count)
+            '&param18=' + encodeURIComponent(val_norder) +      // 旧 param15 (NOrder)
             '&lang=' + encodeURIComponent(testLangType);
+
+        // 注意: param9, param10はtmpfile.php側で固定でNULLを入れる仕様のようなので、
+        // ここではJSから値を送ってもtmpfile.php側で無視されるか、既存コードに合わせて空を送ります。
+        // 今回の要件では「param11,12,13」を追加したいとのことなので、
+        // tmpfile.phpの受け取り側と整合性を合わせます。
 
         new Ajax.Request(URL + 'tmpfile.php', {
             method: 'get',
@@ -2103,6 +2233,9 @@ $stmt->close();
         }
         // --- ▲▲▲ 追加ここまで ▲▲▲ ---
 
+        // ★追加: 状態計算 (MouseUpなので false: 配置完了後の状態を見る)
+        var stickInfo = calculateStickParams(false);
+
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
             '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
             '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
@@ -2111,14 +2244,19 @@ $stmt->close();
             '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
-            // 新規追加パラメータ (param9 - param15)
+            // 既存
             '&param9=' + encodeURIComponent(val_stick) +
             '&param10=' + encodeURIComponent(val_stick_count) +
-            '&param11=' + encodeURIComponent(val_repel) +
-            '&param12=' + encodeURIComponent(val_repel_count) +
-            '&param13=' + encodeURIComponent(val_back) +
-            '&param14=' + encodeURIComponent(val_back_count) +
-            '&param15=' + encodeURIComponent(val_norder) +
+            // ▼▼▼ 新規追加 ▼▼▼
+            '&param11=' + encodeURIComponent(stickInfo.now) +
+            '&param12=' + encodeURIComponent(stickInfo.num1) +
+            '&param13=' + encodeURIComponent(stickInfo.num2) +
+            // ▼▼▼ シフト ▼▼▼
+            '&param14=' + encodeURIComponent(val_repel) +
+            '&param15=' + encodeURIComponent(val_repel_count) +
+            '&param16=' + encodeURIComponent(val_back) +
+            '&param17=' + encodeURIComponent(val_back_count) +
+            '&param18=' + encodeURIComponent(val_norder) +
             '&lang=' + encodeURIComponent(testLangType);
 
         new Ajax.Request(URL + 'tmpfile.php', {
