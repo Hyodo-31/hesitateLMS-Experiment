@@ -192,21 +192,20 @@ $_SESSION["page"] = "ques";
     var region = 0;
     var URL = './' //サーバー用
     var attempt = 0; //20250514追加
-    
+
     // ======================= ▼▼▼ 新規追加: 単語群状態管理用 ▼▼▼ =======================
     var GlobalGroupCounter = 0; // 単語群IDの採番用カウンタ
     var LastGroupState = [];    // 直前の単語群の状態 [{id: 1, ver: 1, members: "1#2"}]
 
     /**
-     * 2語以上の単語群のみを対象に stick_now, stick_number1, stick_number2 を計算する
-     * @param {boolean} isMouseDown - マウスダウン時かどうか
-     * @returns {Object} { now: count, num1: id, num2: ver }
+     * @param {boolean} isMouseDown 
+     * @param {Array} draggedIDs - ドラッグ中の単語IDの配列（MouseDown時のみ指定）
      */
-    function calculateStickParams(isMouseDown) {
-        // 1. まず全てのグループを取得
-        var allGroups = getAnswerGroups(25, isMouseDown);
+    function calculateStickParams(isMouseDown, draggedIDs) {
+        if (!draggedIDs) draggedIDs = []; // デフォルト空配列
 
-        // 2. 「2語以上」のグループ（クラスター）のみを抽出
+        // 1. 盤面の有効な群を取得
+        var allGroups = getAnswerGroups(25, isMouseDown);
         var validClusters = [];
         for (var i = 0; i < allGroups.length; i++) {
             if (allGroups[i].members.length >= 2) {
@@ -214,24 +213,18 @@ $_SESSION["page"] = "ques";
             }
         }
 
-        // --- A. stick_now (2語以上の単語群の個数) ---
-        // 1個もなければ0になります
         var stick_now = validClusters.length;
-
-        // --- B. stick_number (IDとバージョン管理) ---
         var targetID = "";
         var targetVer = "";
-
         var newGroupState = [];
-        var usedOldIds = {}; // ID重複防止用
+        var usedOldIds = {};
 
-        // 有効なクラスターそれぞれについて、過去の状態と比較
+        // --- A. 現在盤面にある群の処理 ---
         for (var i = 0; i < validClusters.length; i++) {
             var membersArr = [];
             for (var m = 0; m < validClusters[i].members.length; m++) {
                 membersArr.push(validClusters[i].members[m].id);
             }
-            // ID順にソートして文字列化 "1#2"
             membersArr.sort(function (a, b) { return a - b });
             var membersStr = membersArr.join("#");
 
@@ -239,7 +232,7 @@ $_SESSION["page"] = "ques";
             var assignedVer = 1;
             var isUpdated = false;
 
-            // 1. 完全一致チェック (移動のみ。ID維持、Ver維持)
+            // 完全一致チェック
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
                 if (LastGroupState[k].members === membersStr) {
@@ -250,12 +243,10 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // 2. 部分一致チェック (構成変化。ID維持、Ver更新)
-            // 以前のクラスターに含まれていた単語を含んでいれば同一とみなす
+            // 部分一致チェック
             if (assignedID === -1) {
                 for (var k = 0; k < LastGroupState.length; k++) {
                     if (usedOldIds[LastGroupState[k].id]) continue;
-
                     var oldMembers = LastGroupState[k].members.split("#");
                     var hasIntersection = false;
                     for (var x = 0; x < membersArr.length; x++) {
@@ -264,10 +255,9 @@ $_SESSION["page"] = "ques";
                             break;
                         }
                     }
-
                     if (hasIntersection) {
                         assignedID = LastGroupState[k].id;
-                        assignedVer = LastGroupState[k].ver + 1; // 更新回数カウントアップ
+                        assignedVer = LastGroupState[k].ver + 1;
                         usedOldIds[assignedID] = true;
                         isUpdated = true;
                         break;
@@ -275,7 +265,7 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // 3. 新規作成 (新しい単語群の誕生。新ID、Ver1)
+            // 新規作成
             if (assignedID === -1) {
                 GlobalGroupCounter++;
                 assignedID = GlobalGroupCounter;
@@ -283,36 +273,55 @@ $_SESSION["page"] = "ques";
                 isUpdated = true;
             }
 
-            // 次の状態として保存
             newGroupState.push({
                 id: assignedID,
                 ver: assignedVer,
                 members: membersStr
             });
 
-            // 今回更新または新規作成されたものを記録対象とする
-            // ※注意: 単語群が分裂して2つの有効な群になった場合、ループの後の方のものが上書きされますが、
-            //  操作の主対象が明確なMouseUp/Downイベント内であれば概ね期待通り動作します。
             if (isUpdated) {
                 targetID = assignedID;
                 targetVer = assignedVer;
             }
         }
 
-        // 状態更新
+        // --- B. 【追加】盤面から消えたが、ドラッグ中として維持すべき群の救済 ---
+        // これにより、移動中は「消えた」扱いにせず、LastGroupStateに情報を残します。
+        if (isMouseDown && draggedIDs.length > 0) {
+            for (var k = 0; k < LastGroupState.length; k++) {
+                // すでに上記Aで処理された（盤面に残っている、あるいは一部残っている）IDは対象外
+                if (usedOldIds[LastGroupState[k].id]) continue;
+
+                // この過去の群のメンバーが、今回ドラッグされたIDに含まれているか？
+                var oldMembers = LastGroupState[k].members.split("#");
+                var isDragging = false;
+
+                // 丸ごとドラッグされた場合、oldMembersはすべてdraggedIDsに含まれているはず
+                // ここでは「いずれかが含まれていれば」維持対象とします（分離ドラッグの場合も考慮）
+                for (var m = 0; m < oldMembers.length; m++) {
+                    if (draggedIDs.indexOf(oldMembers[m]) !== -1) {
+                        isDragging = true;
+                        break;
+                    }
+                }
+
+                if (isDragging) {
+                    // 状態をそのまま引き継ぐ（更新フラグは立てない）
+                    newGroupState.push(LastGroupState[k]);
+                    usedOldIds[LastGroupState[k].id] = true;
+                }
+            }
+        }
+
         LastGroupState = newGroupState;
 
-        // 結果返却
-        // 単語群が崩壊して1語以下になった場合は、validClustersループに入らないため
-        // targetID は "" のままとなり、number1, number2 は記録されません。
-        // stick_now は正しく「残った群の数」を返します。
         return {
             now: stick_now,
             num1: (targetID !== "") ? targetID : "",
             num2: (targetID !== "") ? targetVer : ""
         };
     }
-    // ======================= ▲▲▲ 修正版ここまで ▲▲▲ =======================
+    // ======================= ▲▲▲ 修正版2ここまで ▲▲▲ =======================
 
     var JapaneseAnswer = "";
     var sorted_labels = new Array();
@@ -1671,7 +1680,16 @@ $stmt->close();
             }
         }
         // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
-        var stickInfo = calculateStickParams(true);
+        // ドラッグ対象のIDリストを作成
+        var draggingIDs = [];
+        if (MyControls.length > 0) {
+            for (var i = 0; i < MyControls.length; i++) draggingIDs.push(MyControls[i].id);
+        } else {
+            draggingIDs.push(sender.id);
+        }
+
+        // 第2引数にドラッグ中のIDを渡す
+        var stickInfo = calculateStickParams(true, draggingIDs);
 
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
             '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
