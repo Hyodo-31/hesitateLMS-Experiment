@@ -1,4 +1,5 @@
 ﻿<?php
+//ログイン関連
 //error_reporting(E_ALL);   // デバッグ時
 error_reporting(0);   // 運用時
 session_start();
@@ -8,8 +9,7 @@ $FName2 = "linedatamouse";
 $MemberID = $_SESSION["MemberID"];
 $attempt = $_SESSION["attempt"];
 
-// ▼▼▼ 修正: 追加カラムの受け取り (param9 ～ param15) ▼▼▼
-// 値が空文字の場合は "NULL" をSQLに入れる処理
+// ▼▼▼ ヘルパー関数 ▼▼▼
 function getParam($key)
 {
 	if (isset($_GET[$key]) && $_GET[$key] !== "") {
@@ -19,23 +19,27 @@ function getParam($key)
 	}
 }
 
-$p9 = getParam('param9');  // register_stick
+// ▼▼▼ パラメータ取得 ▼▼▼
+// 既存の stick 関連 (param9 - 13)
+$p9 = getParam('param9');   // register_stick
 $p10 = getParam('param10'); // register_stick_count
-
-// ★新規追加 (param11, 12, 13)
 $p11 = getParam('param11'); // stick_now
 $p12 = getParam('param12'); // stick_number1
 $p13 = getParam('param13'); // stick_number2
 
-// ★シフトした既存項目 (param14 ～ 18)
-$p14 = getParam('param14'); // repel (旧param11)
-$p15 = getParam('param15'); // repel_count (旧param12)
-$p16 = getParam('param16'); // back (旧param13)
-$p17 = getParam('param17'); // back_count (旧param14)
-$p18 = getParam('param18'); // NOrder (旧param15)
+// ★新規追加 (param14 - 16)
+$p14 = getParam('param14'); // stick_number_same (構成が変わらず戻された場合)
+$p15 = getParam('param15'); // stick_composition_count (構成単語数)
+$p16 = getParam('param16'); // word_now (単語単体の個数)
+
+// ★シフトした既存項目 (param17 - 21)
+$p17 = getParam('param17'); // repel (旧param14)
+$p18 = getParam('param18'); // repel_count (旧param15)
+$p19 = getParam('param19'); // back (旧param16)
+$p20 = getParam('param20'); // back_count (旧param17)
+$p21 = getParam('param21'); // NOrder (旧param18)
 
 // SQL文の構築
-// param1~8は既存通り、attemptの後ろに新しい7カラムを追加
 $str = "INSERT INTO " . $FName2 . " VALUES("
 	. $MemberID . ","
 	. $_GET['param1'] . ","
@@ -49,21 +53,23 @@ $str = "INSERT INTO " . $FName2 . " VALUES("
 	. $attempt . ","
 	. $p9 . ","
 	. $p10 . ","
-	// ▼▼▼ ここに新規追加分を挿入 ▼▼▼
 	. $p11 . "," // stick_now
 	. $p12 . "," // stick_number1
 	. $p13 . "," // stick_number2
-    // ▲▲▲ 追加ここまで ▲▲▲
-	. $p14 . "," // repel
-	. $p15 . "," // repel_count
-	. $p16 . "," // back
-	. $p17 . "," // back_count
-	. $p18       // NOrder
+	// ▼▼▼ 新規追加 ▼▼▼
+	. $p14 . "," // stick_number_same
+	. $p15 . "," // stick_composition_count
+	. $p16 . "," // word_now
+	// ▼▼▼ シフト分 ▼▼▼
+	. $p17 . "," // repel
+	. $p18 . "," // repel_count
+	. $p19 . "," // back
+	. $p20 . "," // back_count
+	. $p21       // NOrder
 	. ")";
 
 //ファイル書き込みコード
 $TempFileName = sys_get_temp_dir() . "/tem" . $MemberID . ".tmp";
 file_put_contents($TempFileName, $str . "\n", FILE_APPEND | LOCK_EX);
 echo file_get_contents($TempFileName);
-
 ?>

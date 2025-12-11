@@ -196,13 +196,39 @@ $_SESSION["page"] = "ques";
     // ======================= ▼▼▼ 新規追加: 単語群状態管理用 ▼▼▼ =======================
     var GlobalGroupCounter = 0; // 単語群IDの採番用カウンタ
     var LastGroupState = [];    // 直前の単語群の状態 [{id: 1, ver: 1, members: "1#2"}]
+    // ▼▼▼ 修正: ドラッグ開始時の状態保持用変数 ▼▼▼
+    var DragStartGroupState = null; // { id: 1, members: "1#3#4#8" }
 
+    // ======================= ▼▼▼ 修正版3: ドラッグ前後比較版 ▼▼▼ =======================
+    // ======================= ▼▼▼ 修正版4: 不要なカウントアップ防止版 ▼▼▼ =======================
     /**
      * @param {boolean} isMouseDown 
-     * @param {Array} draggedIDs - ドラッグ中の単語IDの配列（MouseDown時のみ指定）
+     * @param {Array} draggedIDs - ドラッグ中の単語IDの配列
      */
     function calculateStickParams(isMouseDown, draggedIDs) {
-        if (!draggedIDs) draggedIDs = []; // デフォルト空配列
+        if (!draggedIDs) draggedIDs = [];
+
+        // ■■■ MouseDown時: 崩れる前の状態を保存 (same判定用) ■■■
+        if (isMouseDown && draggedIDs.length > 0) {
+            DragStartGroupState = null;
+            for (var k = 0; k < LastGroupState.length; k++) {
+                var oldMembers = LastGroupState[k].members.split("#");
+                var isHit = false;
+                for (var d = 0; d < draggedIDs.length; d++) {
+                    if (oldMembers.indexOf(draggedIDs[d]) !== -1) {
+                        isHit = true;
+                        break;
+                    }
+                }
+                if (isHit) {
+                    DragStartGroupState = {
+                        id: LastGroupState[k].id,
+                        members: LastGroupState[k].members
+                    };
+                    break;
+                }
+            }
+        }
 
         // 1. 盤面の有効な群を取得
         var allGroups = getAnswerGroups(25, isMouseDown);
@@ -216,6 +242,9 @@ $_SESSION["page"] = "ques";
         var stick_now = validClusters.length;
         var targetID = "";
         var targetVer = "";
+        var targetSame = "";
+        var targetCount = "";
+
         var newGroupState = [];
         var usedOldIds = {};
 
@@ -232,18 +261,40 @@ $_SESSION["page"] = "ques";
             var assignedVer = 1;
             var isUpdated = false;
 
-            // 完全一致チェック
+            // ★今回の操作対象（ターゲット）かどうかを先に判定
+            // ドラッグ中の単語を含んでいるか？
+            var isTarget = false;
+            if (draggedIDs.length > 0) {
+                for (var x = 0; x < membersArr.length; x++) {
+                    if (draggedIDs.indexOf(membersArr[x]) !== -1) {
+                        isTarget = true;
+                        break;
+                    }
+                }
+            }
+
+            // 1. 完全一致チェック
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
                 if (LastGroupState[k].members === membersStr) {
                     assignedID = LastGroupState[k].id;
-                    assignedVer = LastGroupState[k].ver;
+
+                    // ▼▼▼ 修正: 操作対象の場合のみバージョンアップする ▼▼▼
+                    if (isTarget) {
+                        // 「戻した」操作などを記録するため +1
+                        assignedVer = LastGroupState[k].ver + 1;
+                    } else {
+                        // 関係ない群はバージョン維持
+                        assignedVer = LastGroupState[k].ver;
+                    }
+                    // ▲▲▲ 修正ここまで ▲▲▲
+
                     usedOldIds[assignedID] = true;
                     break;
                 }
             }
 
-            // 部分一致チェック
+            // 2. 部分一致チェック (構成変化は常にバージョンアップ)
             if (assignedID === -1) {
                 for (var k = 0; k < LastGroupState.length; k++) {
                     if (usedOldIds[LastGroupState[k].id]) continue;
@@ -257,56 +308,66 @@ $_SESSION["page"] = "ques";
                     }
                     if (hasIntersection) {
                         assignedID = LastGroupState[k].id;
-                        assignedVer = LastGroupState[k].ver + 1;
+                        assignedVer = LastGroupState[k].ver + 1; // 変化したので必ず+1
                         usedOldIds[assignedID] = true;
                         isUpdated = true;
+                        // 部分一致で更新されたものは、実質的にターゲット（影響を受けた群）
+                        isTarget = true;
                         break;
                     }
                 }
             }
 
-            // 新規作成
+            // 3. 新規作成
             if (assignedID === -1) {
                 GlobalGroupCounter++;
                 assignedID = GlobalGroupCounter;
                 assignedVer = 1;
                 isUpdated = true;
+                // 新規作成されたものもターゲットとみなす（初期配置や結合時）
+                if (draggedIDs.length > 0) isTarget = true;
             }
 
+            // 新しい状態リストに追加
             newGroupState.push({
                 id: assignedID,
                 ver: assignedVer,
                 members: membersStr
             });
 
-            if (isUpdated) {
-                targetID = assignedID;
-                targetVer = assignedVer;
+            // 4. パラメータ出力用の判定
+            // isTargetフラグ または isUpdatedフラグ が立っているものを今回の出力対象とする
+            if (isTarget || isUpdated) {
+                // 明示的にドラッグIDが含まれていなくても、初期ロード時などは isUpdated で出力させる
+                if (!isMouseDown || (isMouseDown && draggedIDs.length > 0)) {
+                    targetID = assignedID;
+                    targetVer = assignedVer;
+                    targetCount = membersArr.length;
+
+                    // ■■■ MouseUp時: 復元判定 (stick_number_same) ■■■
+                    if (!isMouseDown && DragStartGroupState) {
+                        if (DragStartGroupState.id === assignedID &&
+                            DragStartGroupState.members === membersStr) {
+                            targetSame = "1";
+                        }
+                    }
+                }
             }
         }
 
-        // --- B. 【追加】盤面から消えたが、ドラッグ中として維持すべき群の救済 ---
-        // これにより、移動中は「消えた」扱いにせず、LastGroupStateに情報を残します。
+        // --- B. 盤面から消えた群の維持処理 ---
         if (isMouseDown && draggedIDs.length > 0) {
             for (var k = 0; k < LastGroupState.length; k++) {
-                // すでに上記Aで処理された（盤面に残っている、あるいは一部残っている）IDは対象外
                 if (usedOldIds[LastGroupState[k].id]) continue;
-
-                // この過去の群のメンバーが、今回ドラッグされたIDに含まれているか？
                 var oldMembers = LastGroupState[k].members.split("#");
                 var isDragging = false;
-
-                // 丸ごとドラッグされた場合、oldMembersはすべてdraggedIDsに含まれているはず
-                // ここでは「いずれかが含まれていれば」維持対象とします（分離ドラッグの場合も考慮）
                 for (var m = 0; m < oldMembers.length; m++) {
                     if (draggedIDs.indexOf(oldMembers[m]) !== -1) {
                         isDragging = true;
                         break;
                     }
                 }
-
                 if (isDragging) {
-                    // 状態をそのまま引き継ぐ（更新フラグは立てない）
                     newGroupState.push(LastGroupState[k]);
                     usedOldIds[LastGroupState[k].id] = true;
                 }
@@ -318,10 +379,27 @@ $_SESSION["page"] = "ques";
         return {
             now: stick_now,
             num1: (targetID !== "") ? targetID : "",
-            num2: (targetID !== "") ? targetVer : ""
+            num2: (targetID !== "") ? targetVer : "",
+            same: (targetSame !== "") ? targetSame : "",
+            count: (targetCount !== "") ? targetCount : ""
         };
     }
-    // ======================= ▲▲▲ 修正版2ここまで ▲▲▲ =======================
+
+    // ★新規追加: 単一単語の個数をカウントする関数 (word_now用)
+    function getSingleWordCount() {
+        // 現在の解答欄にある全グループ(単体含む)を取得
+        // false = ドラッグ中を無視しない（MouseUp後なので配置済みとして扱う）
+        var allGroups = getAnswerGroups(25, false);
+        var singleCount = 0;
+
+        for (var i = 0; i < allGroups.length; i++) {
+            // メンバーが1つだけ＝単一単語
+            if (allGroups[i].members.length === 1) {
+                singleCount++;
+            }
+        }
+        return singleCount;
+    }
 
     var JapaneseAnswer = "";
     var sorted_labels = new Array();
@@ -1676,7 +1754,7 @@ $stmt->close();
 
             if (stickIds.length > 0) {
                 val_stick = stickIds.join("#");
-                val_stick_count = "1";
+                val_stick_count = "2";
             }
         }
         // ======================= ▲▲▲ 修正ここまで ▲▲▲ =======================
@@ -1699,18 +1777,22 @@ $stmt->close();
             '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
-            // --- 新規追加パラメータ (11, 12, 13) ---
-            '&param9=' + encodeURIComponent("") +  // 予備(param9) - DB構造維持のため空
-            '&param10=' + encodeURIComponent("") + // 予備(param10) - DB構造維持のため空
-            '&param11=' + encodeURIComponent(stickInfo.now) +  // stick_now
-            '&param12=' + encodeURIComponent(stickInfo.num1) + // stick_number1
-            '&param13=' + encodeURIComponent(stickInfo.num2) + // stick_number2
-            // --- 既存パラメータを後ろへずらす ---
-            '&param14=' + encodeURIComponent(val_repel) +       // 旧 param11 (repel)
-            '&param15=' + encodeURIComponent(val_repel_count) + // 旧 param12 (repel_count)
-            '&param16=' + encodeURIComponent(val_back) +        // 旧 param13 (back)
-            '&param17=' + encodeURIComponent(val_back_count) +  // 旧 param14 (back_count)
-            '&param18=' + encodeURIComponent(val_norder) +      // 旧 param15 (NOrder)
+            // --- 既存 stick (9-13) ---
+            '&param9=' + encodeURIComponent(val_stick) +       // register_stick
+            '&param10=' + encodeURIComponent(val_stick_count) + // register_stick_count
+            '&param11=' + encodeURIComponent(stickInfo.now) +   // stick_now
+            '&param12=' + encodeURIComponent(stickInfo.num1) +  // stick_number1
+            '&param13=' + encodeURIComponent(stickInfo.num2) +  // stick_number2
+            // --- ▼▼▼ 新規追加 (14-16) ▼▼▼ ---
+            '&param14=' + encodeURIComponent("") +              // stick_number_same (MouseDown時は空)
+            '&param15=' + encodeURIComponent(stickInfo.count) + // stick_composition_count (ドラッグ中の群構成数)
+            '&param16=' + encodeURIComponent("") +              // word_now (MouseDown時は空)
+            // --- ▼▼▼ シフト分 (17-21) ▼▼▼ ---
+            '&param17=' + encodeURIComponent(val_repel) +       // 旧 param14 (repel)
+            '&param18=' + encodeURIComponent(val_repel_count) + // 旧 param15 (repel_count)
+            '&param19=' + encodeURIComponent(val_back) +        // 旧 param16 (back)
+            '&param20=' + encodeURIComponent(val_back_count) +  // 旧 param17 (back_count)
+            '&param21=' + encodeURIComponent(val_norder) +      // 旧 param18 (NOrder)
             '&lang=' + encodeURIComponent(testLangType);
 
         // 注意: param9, param10はtmpfile.php側で固定でNULLを入れる仕様のようなので、
@@ -2251,8 +2333,15 @@ $stmt->close();
         }
         // --- ▲▲▲ 追加ここまで ▲▲▲ ---
 
-        // ★追加: 状態計算 (MouseUpなので false: 配置完了後の状態を見る)
-        var stickInfo = calculateStickParams(false);
+        // ★calculateStickParamsに操作対象のIDを渡すことで、そのグループの情報を正確に取得
+        var stickInfo = calculateStickParams(false, targetIDs);
+
+        // ▼▼▼ 新規追加: word_now の計算 ▼▼▼
+        var val_word_now = "";
+        // 解答欄(4)での操作であれば常に現在の単一単語数をカウントして記録する
+        if (array_flag2 == 4) {
+            val_word_now = getSingleWordCount();
+        }
 
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
             '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
@@ -2262,19 +2351,22 @@ $stmt->close();
             '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
-            // 既存
+            // 既存 stick (9-13)
             '&param9=' + encodeURIComponent(val_stick) +
             '&param10=' + encodeURIComponent(val_stick_count) +
-            // ▼▼▼ 新規追加 ▼▼▼
             '&param11=' + encodeURIComponent(stickInfo.now) +
             '&param12=' + encodeURIComponent(stickInfo.num1) +
             '&param13=' + encodeURIComponent(stickInfo.num2) +
-            // ▼▼▼ シフト ▼▼▼
-            '&param14=' + encodeURIComponent(val_repel) +
-            '&param15=' + encodeURIComponent(val_repel_count) +
-            '&param16=' + encodeURIComponent(val_back) +
-            '&param17=' + encodeURIComponent(val_back_count) +
-            '&param18=' + encodeURIComponent(val_norder) +
+            // ▼▼▼ 新規追加 (14-16) ▼▼▼
+            '&param14=' + encodeURIComponent(stickInfo.same) +  // stick_number_same
+            '&param15=' + encodeURIComponent(stickInfo.count) + // stick_composition_count
+            '&param16=' + encodeURIComponent(val_word_now) +    // word_now
+            // ▼▼▼ シフト分 (17-21) ▼▼▼
+            '&param17=' + encodeURIComponent(val_repel) +       // 旧param14
+            '&param18=' + encodeURIComponent(val_repel_count) + // 旧param15
+            '&param19=' + encodeURIComponent(val_back) +        // 旧param16
+            '&param20=' + encodeURIComponent(val_back_count) +  // 旧param17
+            '&param21=' + encodeURIComponent(val_norder) +      // 旧param18
             '&lang=' + encodeURIComponent(testLangType);
 
         new Ajax.Request(URL + 'tmpfile.php', {
