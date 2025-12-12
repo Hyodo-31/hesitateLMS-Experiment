@@ -195,7 +195,7 @@ $_SESSION["page"] = "ques";
 
     // ======================= ▼▼▼ 新規追加: 単語群状態管理用 ▼▼▼ =======================
     var GlobalGroupCounter = 0; // 単語群IDの採番用カウンタ
-    var LastGroupState = [];    // 直前の単語群の状態 [{id: 1, ver: 1, members: "1#2"}]
+    var LastGroupState = []; // 直前の単語群の状態 [{id: 1, ver: 1, members: "1#2"}]
     // ▼▼▼ 修正: ドラッグ開始時の状態保持用変数 ▼▼▼
     var DragStartGroupState = null; // { id: 1, members: "1#3#4#8" }
 
@@ -222,18 +222,19 @@ $_SESSION["page"] = "ques";
         CorrectWordSequence = seq;
         console.log("Correct Word Sequence:", CorrectWordSequence);
     }
-    // ======================= ▼▼▼ 修正版8: 単語テキストベースの判定版 ▼▼▼ =======================
+    // ======================= ▼▼▼ 修正版3: 分裂移動の記録漏れ修正版 calculateStickParams ▼▼▼ =======================
     /**
      * @param {boolean} isMouseDown 
      * @param {Array} draggedIDs - ドラッグ中の単語IDの配列
      */
     function calculateStickParams(isMouseDown, draggedIDs) {
 
-        // ... (前半の処理は変更なし。DragStartGroupStateの保存など) ...
         if (!draggedIDs) draggedIDs = [];
+
+        // --- ドラッグ開始時の状態保存 (MouseDown時) ---
         if (isMouseDown && draggedIDs.length > 0) {
-            // (省略: DragStartGroupState保存処理)
             DragStartGroupState = null;
+            // 直前の状態から、ドラッグされたIDを含むグループを探して保存
             for (var k = 0; k < LastGroupState.length; k++) {
                 var oldMembers = LastGroupState[k].members.split("#");
                 var isHit = false;
@@ -265,18 +266,31 @@ $_SESSION["page"] = "ques";
 
         var stick_now = validClusters.length;
         // 変数定義
-        var targetID = "", targetVer = "", targetSame = "", targetCount = "";
-        var targetLeftX = "", targetRightX = "", targetY = "", targetIncorrect = "";
+        var targetID = "",
+            targetVer = "",
+            targetSame = "",
+            targetCount = "";
+        var targetLeftX = "",
+            targetRightX = "",
+            targetY = "",
+            targetIncorrect = "";
 
         var newGroupState = [];
         var usedOldIds = {};
+
+        // ドラッグされたID群をソートして文字列化（比較用）
+        var sortedDraggedStr = "";
+        if (draggedIDs.length > 0) {
+            sortedDraggedStr = draggedIDs.slice().sort(function(a, b) {
+                return a - b
+            }).join("#");
+        }
 
         // --- A. 現在盤面にある群の処理 ---
         for (var i = 0; i < validClusters.length; i++) {
             var domElements = validClusters[i].members;
             var membersArr = [];
             var visualIds = [];
-            // ▼▼▼ 追加: 判定用の単語テキスト配列 ▼▼▼
             var visualWords = [];
 
             for (var m = 0; m < domElements.length; m++) {
@@ -284,19 +298,22 @@ $_SESSION["page"] = "ques";
                 membersArr.push(id);
                 visualIds.push(id);
 
-                // テキストを取得・正規化（記号除去・小文字化）して保存
+                // テキストを取得・正規化
                 var text = domElements[m].innerHTML.replace(/[.,?!:;)'’]+/g, "").trim().toLowerCase();
                 visualWords.push(text);
             }
 
             var visualMembersStr = visualIds.join("#");
-            membersArr.sort(function (a, b) { return a - b });
+            membersArr.sort(function(a, b) {
+                return a - b
+            });
             var membersStr = membersArr.join("#");
 
             var assignedID = -1;
             var assignedVer = 1;
             var isUpdated = false;
 
+            // ターゲット判定 (ドラッグされたIDが含まれているか)
             var isTarget = false;
             if (draggedIDs.length > 0) {
                 for (var x = 0; x < membersArr.length; x++) {
@@ -307,25 +324,64 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // (中略: ID割り当て、バージョン管理ロジックは変更なし)
+            // ■■■ ID引継ぎロジック (Exact Match: 完全一致) ■■■
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
+
+                // 構成メンバーが完全に一致する場合
                 if (LastGroupState[k].members === membersStr) {
                     assignedID = LastGroupState[k].id;
-                    if (isTarget) assignedVer = LastGroupState[k].ver + 1;
-                    else assignedVer = LastGroupState[k].ver;
                     usedOldIds[assignedID] = true;
+
+                    if (isTarget) {
+                        // 解答欄内でのグループ全体移動の場合はバージョンを上げない
+                        // ※ここでは「移動」か「分裂」か区別せず、一旦バージョン維持or更新の候補を決める
+                        //   実際の記録スキップ判定は後述のパラメータ出力部で行う
+
+                        // 元々のグループ構成とドラッグ対象が一致している場合のみ「全体移動」としてバージョン維持
+                        if (typeof array_flag !== 'undefined' && array_flag == 4 &&
+                            sortedDraggedStr === membersStr &&
+                            DragStartGroupState && DragStartGroupState.members === sortedDraggedStr) {
+                            assignedVer = LastGroupState[k].ver; // バージョン維持
+                        } else {
+                            assignedVer = LastGroupState[k].ver + 1; // 更新
+                        }
+                    } else {
+                        assignedVer = LastGroupState[k].ver;
+                    }
                     break;
                 }
             }
+
+            // ■■■ ID引継ぎロジック (Intersection: 一部一致・変形) ■■■
             if (assignedID === -1) {
                 for (var k = 0; k < LastGroupState.length; k++) {
                     if (usedOldIds[LastGroupState[k].id]) continue;
                     var oldMembers = LastGroupState[k].members.split("#");
+
+                    // ▼▼▼ 2語群の「分裂」か「追加」かの判定 ▼▼▼
+                    if (oldMembers.length === 2) {
+                        // 新しいグループ(membersArr)が、古い2語(oldMembers)を「両方とも」含んでいるか確認
+                        var containsAllOldMembers = true;
+                        for (var o = 0; o < oldMembers.length; o++) {
+                            if (membersArr.indexOf(oldMembers[o]) === -1) {
+                                containsAllOldMembers = false;
+                                break;
+                            }
+                        }
+                        // 両方含んでいない場合（＝分裂して別の相手とくっついた場合）
+                        // IDを引き継がず、新規ID発行(=stick_number1インクリメント)とするためにスキップ
+                        if (!containsAllOldMembers) {
+                            continue;
+                        }
+                    }
+                    // ▲▲▲ 判定ここまで ▲▲▲
+
                     var hasIntersection = false;
                     for (var x = 0; x < membersArr.length; x++) {
                         if (oldMembers.indexOf(membersArr[x]) !== -1) {
-                            hasIntersection = true; break;
+                            hasIntersection = true;
+                            break;
                         }
                     }
                     if (hasIntersection) {
@@ -333,10 +389,13 @@ $_SESSION["page"] = "ques";
                         assignedVer = LastGroupState[k].ver + 1;
                         usedOldIds[assignedID] = true;
                         isUpdated = true;
-                        isTarget = true; break;
+                        isTarget = true;
+                        break;
                     }
                 }
             }
+
+            // ■■■ 新規ID発行 ■■■
             if (assignedID === -1) {
                 GlobalGroupCounter++;
                 assignedID = GlobalGroupCounter;
@@ -368,8 +427,26 @@ $_SESSION["page"] = "ques";
                         }
                     }
 
-                    // 座標計算 (省略なし)
-                    var minX = 99999; var maxX = -99999; var sumY = 0;
+                    // ▼▼▼ 修正箇所: 移動時の記録スキップ判定 ▼▼▼
+                    // 「ドラッグした単語群」と「現在の単語群」が一致している場合
+                    if (sortedDraggedStr === membersStr) {
+                        // さらに「ドラッグ開始時の単語群」とも一致している場合のみ「全体移動」とみなして記録をスキップ
+                        // （＝大きなグループから一部を切り出してドロップした場合は、ここではスキップされない）
+                        if (DragStartGroupState && DragStartGroupState.members === sortedDraggedStr) {
+                            // ただし、問題提示欄(0)からの移動の場合は記録する
+                            if (typeof array_flag !== 'undefined' && array_flag == 4) {
+                                targetID = "";
+                                targetVer = "";
+                                targetSame = "";
+                            }
+                        }
+                    }
+                    // ▲▲▲ 修正ここまで ▲▲▲
+
+                    // 座標計算
+                    var minX = 99999;
+                    var maxX = -99999;
+                    var sumY = 0;
                     for (var d = 0; d < domElements.length; d++) {
                         var region = YAHOO.util.Dom.getRegion(domElements[d]);
                         if (region.left < minX) minX = region.left;
@@ -380,15 +457,10 @@ $_SESSION["page"] = "ques";
                     targetRightX = maxX;
                     targetY = Math.round(sumY / domElements.length);
 
-                    // ■■■ 修正: 不正解判定 (incorrect_stick) ■■■
-                    // IDではなく、単語テキストの並び順で判定する
+                    // 不正解判定
                     if (CorrectWordSequence.length > 0) {
-                        // 単語テキストの配列を文字列化して部分一致判定
-                        // 区切り文字は単語に含まれないもの（カンマ等）を使用
                         var currentSeqStr = "," + visualWords.join(",") + ",";
                         var correctSeqStr = "," + CorrectWordSequence.join(",") + ",";
-
-                        // 正解の単語並びの中に、現在の単語並びが含まれているか？
                         if (correctSeqStr.indexOf(currentSeqStr) === -1) {
                             targetIncorrect = "1";
                         }
@@ -397,7 +469,7 @@ $_SESSION["page"] = "ques";
             }
         }
 
-        // (後略: 盤面から消えた群の維持処理など変更なし)
+        // --- B. 盤面から消えた群（ドラッグ中の群など）の維持処理 ---
         if (isMouseDown && draggedIDs.length > 0) {
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
@@ -521,8 +593,8 @@ $stmt->close();
 
 
     //ランダムに配列を並び替えるソース
-    Array.prototype.random = function () {
-        this.sort(function (a, b) {
+    Array.prototype.random = function() {
+        this.sort(function(a, b) {
             var i = Math.ceil(Math.random() * 100) % 2;
             if (i == 0) {
                 return -1;
@@ -534,7 +606,7 @@ $stmt->close();
     //-------------------------------------------------------------
     //配列に指定した値があるかチェック
     if (!Array.prototype.contains) {
-        Array.prototype.contains = function (value) {
+        Array.prototype.contains = function(value) {
             for (var i in this) {
                 if (this.hasOwnProperty(i) && this[i] === value) {
                     return true;
@@ -595,12 +667,12 @@ $stmt->close();
         new Ajax.Request(URL + 'linemouse.php', {
             method: 'get',
             onSuccess: getm,
-            onFailure: function (req) {
+            onFailure: function(req) {
                 getError(req, "linemouse.php")
             }
         });
 
-        function getm(res) { }
+        function getm(res) {}
         //======================================================
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
@@ -609,7 +681,7 @@ $stmt->close();
         new Ajax.Request(URL + 'load.php', {
             method: 'get',
             onSuccess: getOID,
-            onFailure: function (req) {
+            onFailure: function(req) {
                 getError(req, "load.php")
             },
             parameters: $params
@@ -629,7 +701,7 @@ $stmt->close();
         myCheck2(0);
         //===================
 
-        window.addEventListener('unload', function () {
+        window.addEventListener('unload', function() {
             // ewrite.phpを呼び出して、サーバー上の一時ファイルをデータベースに書き込む
             // この通信はページのクローズを妨げず、バックグラウンドで実行される
             navigator.sendBeacon('ewrite.php');
@@ -675,7 +747,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "getattempt.php")
                         },
                         parameters: $params_for_attempt
@@ -693,7 +765,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getResponse,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -714,7 +786,7 @@ $stmt->close();
                         {
                             method: 'get',
                             onSuccess: getStart,
-                            onFailure: function (req) {
+                            onFailure: function(req) {
                                 getError(req, "dbsyori.php")
                             },
                             parameters: $params
@@ -730,7 +802,7 @@ $stmt->close();
                             {
                                 method: 'get',
                                 onSuccess: getDivide,
-                                onFailure: function (req) {
+                                onFailure: function(req) {
                                     getError(req, "dbsyori.php")
                                 },
                                 parameters: $params
@@ -746,7 +818,7 @@ $stmt->close();
                                 {
                                     method: 'get',
                                     onSuccess: getFix,
-                                    onFailure: function (req) {
+                                    onFailure: function(req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -823,13 +895,13 @@ $stmt->close();
 
                                     el = YAHOO.util.Dom.getRegion(p);
                                     //イベントハンドラの追加
-                                    dd[i].onMouseDown = function (e) {
+                                    dd[i].onMouseDown = function(e) {
                                         MyLabels_MouseDown(this.getDragEl())
                                     }
-                                    dd[i].onMouseUp = function (e) {
+                                    dd[i].onMouseUp = function(e) {
                                         MyLabels_MouseUp(this.getDragEl())
                                     }
-                                    dd[i].onDrag = function (e) {
+                                    dd[i].onDrag = function(e) {
                                         MyLabels_MouseMove(this.getDragEl(), e)
                                     }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
@@ -854,7 +926,7 @@ $stmt->close();
                                 new Ajax.Request(URL + 'dbsyori.php', {
                                     method: 'get',
                                     onSuccess: getJapanese,
-                                    onFailure: function (req) {
+                                    onFailure: function(req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -884,7 +956,7 @@ $stmt->close();
                                     new Ajax.Request(URL + 'dbsyori.php', {
                                         method: 'get',
                                         onSuccess: getSentence1,
-                                        onFailure: function (req) {
+                                        onFailure: function(req) {
                                             getError(req, "dbsyori.php")
                                         },
                                         parameters: $params
@@ -903,7 +975,7 @@ $stmt->close();
                                             new Ajax.Request(URL + 'dbsyori.php', {
                                                 method: 'get',
                                                 onSuccess: getSentence2,
-                                                onFailure: function (req) {
+                                                onFailure: function(req) {
                                                     getError(req, "dbsyori.php")
                                                 },
                                                 parameters: $params
@@ -1198,7 +1270,7 @@ $stmt->close();
         }
 
         // X座標順にソート
-        candidates.sort(function (a, b) {
+        candidates.sort(function(a, b) {
             return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
         });
 
@@ -1304,7 +1376,7 @@ $stmt->close();
                         if (!isDrag) otherCandidates.push(lbl);
                     }
                 }
-                otherCandidates.sort(function (a, b) {
+                otherCandidates.sort(function(a, b) {
                     return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
                 });
 
@@ -1421,7 +1493,7 @@ $stmt->close();
 
                 // 4. スパイラル探索（総当たり）
                 // (x,y) が有効かチェックする関数
-                var isValidPosition = function (x, y) {
+                var isValidPosition = function(x, y) {
                     // 解答欄の枠内チェック（ここは厳密に）
                     if (x < areaMinX || x + groupW > areaMaxX) return false;
                     if (y < areaMinY || y + groupH > areaMaxY) return false;
@@ -1467,24 +1539,24 @@ $stmt->close();
                     var maxRadius = 800; // 探索最大半径
 
                     searchLoop:
-                    for (var r = 1; r * step < maxRadius; r++) {
-                        var dist = r * step;
-                        // 円周上をチェック（半径に応じて分割数を変えるとなお良いが固定でも可）
-                        var angleStep = 0.5; // ラジアン単位
-                        if (dist > 100) angleStep = 0.2; // 遠くへ行くほど細かく
+                        for (var r = 1; r * step < maxRadius; r++) {
+                            var dist = r * step;
+                            // 円周上をチェック（半径に応じて分割数を変えるとなお良いが固定でも可）
+                            var angleStep = 0.5; // ラジアン単位
+                            if (dist > 100) angleStep = 0.2; // 遠くへ行くほど細かく
 
-                        for (var theta = 0; theta < 2 * Math.PI; theta += angleStep) {
-                            var checkX = startX + dist * Math.cos(theta);
-                            var checkY = startY + dist * Math.sin(theta);
+                            for (var theta = 0; theta < 2 * Math.PI; theta += angleStep) {
+                                var checkX = startX + dist * Math.cos(theta);
+                                var checkY = startY + dist * Math.sin(theta);
 
-                            if (isValidPosition(checkX, checkY)) {
-                                foundX = checkX;
-                                foundY = checkY;
-                                isFound = true;
-                                break searchLoop;
+                                if (isValidPosition(checkX, checkY)) {
+                                    foundX = checkX;
+                                    foundY = checkY;
+                                    isFound = true;
+                                    break searchLoop;
+                                }
                             }
                         }
-                    }
                 }
 
                 // 見つからなかった場合（ほぼあり得ないが）、エリア左上に強制配置などの安全策
@@ -1529,7 +1601,7 @@ $stmt->close();
         var hoveredLabel = this; // マウスが乗っているラベル
 
         // ラベルが解答欄にあるかチェック
-        var isInAnswerArea = Mylabels_ea.some(function (label) {
+        var isInAnswerArea = Mylabels_ea.some(function(label) {
             return label.id === hoveredLabel.id;
         });
 
@@ -1825,21 +1897,21 @@ $stmt->close();
             '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
             '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
             // --- 既存 stick (9-13) ---
-            '&param9=' + encodeURIComponent(val_stick) +       // register_stick
+            '&param9=' + encodeURIComponent(val_stick) + // register_stick
             '&param10=' + encodeURIComponent(val_stick_count) + // register_stick_count
-            '&param11=' + encodeURIComponent(stickInfo.now) +   // stick_now
-            '&param12=' + encodeURIComponent(stickInfo.num1) +  // stick_number1
-            '&param13=' + encodeURIComponent(stickInfo.num2) +  // stick_number2
+            '&param11=' + encodeURIComponent(stickInfo.now) + // stick_now
+            '&param12=' + encodeURIComponent(stickInfo.num1) + // stick_number1
+            '&param13=' + encodeURIComponent(stickInfo.num2) + // stick_number2
             // --- ▼▼▼ 新規追加 (14-16) ▼▼▼ ---
-            '&param14=' + encodeURIComponent("") +              // stick_number_same (MouseDown時は空)
+            '&param14=' + encodeURIComponent("") + // stick_number_same (MouseDown時は空)
             '&param15=' + encodeURIComponent(stickInfo.count) + // stick_composition_count (ドラッグ中の群構成数)
-            '&param16=' + encodeURIComponent("") +              // word_now (MouseDown時は空)
+            '&param16=' + encodeURIComponent("") + // word_now (MouseDown時は空)
             // --- ▼▼▼ シフト分 (17-21) ▼▼▼ ---
-            '&param17=' + encodeURIComponent(val_repel) +       // 旧 param14 (repel)
+            '&param17=' + encodeURIComponent(val_repel) + // 旧 param14 (repel)
             '&param18=' + encodeURIComponent(val_repel_count) + // 旧 param15 (repel_count)
-            '&param19=' + encodeURIComponent(val_back) +        // 旧 param16 (back)
-            '&param20=' + encodeURIComponent(val_back_count) +  // 旧 param17 (back_count)
-            '&param21=' + encodeURIComponent(val_norder) +      // 旧 param18 (NOrder)
+            '&param19=' + encodeURIComponent(val_back) + // 旧 param16 (back)
+            '&param20=' + encodeURIComponent(val_back_count) + // 旧 param17 (back_count)
+            '&param21=' + encodeURIComponent(val_norder) + // 旧 param18 (NOrder)
             '&param22=' + encodeURIComponent(stickInfo.leftX) +
             '&param23=' + encodeURIComponent(stickInfo.rightX) +
             '&param24=' + encodeURIComponent(stickInfo.topY) +
@@ -1852,11 +1924,11 @@ $stmt->close();
 
         new Ajax.Request(URL + 'tmpfile.php', {
             method: 'get',
-            onSuccess: function (req) {
+            onSuccess: function(req) {
                 document.getElementById("msg").innerHTML = req.responseText;
                 Mld = false;
             },
-            onFailure: function () {
+            onFailure: function() {
                 alert("失敗d");
             },
             parameters: $params
@@ -1939,7 +2011,7 @@ $stmt->close();
         if (Mylabels_ea.length === 0) return;
 
         // 1. 座標順にソート
-        var sorted = Mylabels_ea.slice(0).sort(function (a, b) {
+        var sorted = Mylabels_ea.slice(0).sort(function(a, b) {
             var rA = YAHOO.util.Dom.getRegion(a);
             var rB = YAHOO.util.Dom.getRegion(b);
             if (Math.abs(rA.top - rB.top) > 15) return rA.top - rB.top;
@@ -2060,7 +2132,7 @@ $stmt->close();
             }
         }
 
-        staticLabels.sort(function (a, b) {
+        staticLabels.sort(function(a, b) {
             var rA = YAHOO.util.Dom.getRegion(a);
             var rB = YAHOO.util.Dom.getRegion(b);
             if (Math.abs(rA.top - rB.top) > 15) return rA.top - rB.top;
@@ -2408,15 +2480,15 @@ $stmt->close();
             '&param12=' + encodeURIComponent(stickInfo.num1) +
             '&param13=' + encodeURIComponent(stickInfo.num2) +
             // ▼▼▼ 新規追加 (14-16) ▼▼▼
-            '&param14=' + encodeURIComponent(stickInfo.same) +  // stick_number_same
+            '&param14=' + encodeURIComponent(stickInfo.same) + // stick_number_same
             '&param15=' + encodeURIComponent(stickInfo.count) + // stick_composition_count
-            '&param16=' + encodeURIComponent(val_word_now) +    // word_now
+            '&param16=' + encodeURIComponent(val_word_now) + // word_now
             // ▼▼▼ シフト分 (17-21) ▼▼▼
-            '&param17=' + encodeURIComponent(val_repel) +       // 旧param14
+            '&param17=' + encodeURIComponent(val_repel) + // 旧param14
             '&param18=' + encodeURIComponent(val_repel_count) + // 旧param15
-            '&param19=' + encodeURIComponent(val_back) +        // 旧param16
-            '&param20=' + encodeURIComponent(val_back_count) +  // 旧param17
-            '&param21=' + encodeURIComponent(val_norder) +      // 旧param18
+            '&param19=' + encodeURIComponent(val_back) + // 旧param16
+            '&param20=' + encodeURIComponent(val_back_count) + // 旧param17
+            '&param21=' + encodeURIComponent(val_norder) + // 旧param18
             '&param22=' + encodeURIComponent(stickInfo.leftX) +
             '&param23=' + encodeURIComponent(stickInfo.rightX) +
             '&param24=' + encodeURIComponent(stickInfo.topY) +
@@ -2606,7 +2678,7 @@ $stmt->close();
         };
 
         // 3. X座標でソート
-        rowLabels.sort(function (a, b) {
+        rowLabels.sort(function(a, b) {
             return YAHOO.util.Dom.getRegion(a).left - YAHOO.util.Dom.getRegion(b).left;
         });
 
@@ -2760,7 +2832,7 @@ $stmt->close();
         }
 
         // 2. まずは視覚的な読み順（上から下、左から右）でソートして整列させる
-        targets.sort(function (a, b) {
+        targets.sort(function(a, b) {
             var rA = YAHOO.util.Dom.getRegion(a);
             var rB = YAHOO.util.Dom.getRegion(b);
             // 高さのズレが20px未満なら同じ行とみなす
@@ -2813,7 +2885,7 @@ $stmt->close();
 
         // 2. グループの「左端（left）」を比較して、小さい順（左→右）に並べ替え
         // これにより、行が違っても「左にある塊」から順に並びます
-        groups.sort(function (a, b) {
+        groups.sort(function(a, b) {
             return a.left - b.left;
         });
 
@@ -2905,7 +2977,7 @@ $stmt->close();
             parameters: $params
         });
         //▲マウスデータの取得
-        function getA(req) { }
+        function getA(req) {}
 
         function getE(req) {
             alert("失敗g");
@@ -3361,7 +3433,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getwriteuser_progress,
-                        onFailure: function (req) {
+                        onFailure: function(req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -4073,11 +4145,11 @@ $stmt->close();
 
     <script type="text/javascript">
         function disableSelection(target) {
-            if (typeof target.onselectstart != "undefined") target.onselectstart = function () {
+            if (typeof target.onselectstart != "undefined") target.onselectstart = function() {
                 return false
             }
             else if (typeof target.style.MozUserSelect != "undefined") target.style.MozUserSelect = "none"
-            else target.onmousedown = function () {
+            else target.onmousedown = function() {
                 return false
             }
             target.style.cursor = "default"
