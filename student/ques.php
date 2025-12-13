@@ -222,7 +222,7 @@ $_SESSION["page"] = "ques";
         CorrectWordSequence = seq;
         console.log("Correct Word Sequence:", CorrectWordSequence);
     }
-    // ======================= ▼▼▼ 修正版3: 分裂移動の記録漏れ修正版 calculateStickParams ▼▼▼ =======================
+    // ======================= ▼▼▼ 修正版: incorrect_stick_now (誤った群の総数) 実装版 ▼▼▼ =======================
     /**
      * @param {boolean} isMouseDown 
      * @param {Array} draggedIDs - ドラッグ中の単語IDの配列
@@ -234,7 +234,6 @@ $_SESSION["page"] = "ques";
         // --- ドラッグ開始時の状態保存 (MouseDown時) ---
         if (isMouseDown && draggedIDs.length > 0) {
             DragStartGroupState = null;
-            // 直前の状態から、ドラッグされたIDを含むグループを探して保存
             for (var k = 0; k < LastGroupState.length; k++) {
                 var oldMembers = LastGroupState[k].members.split("#");
                 var isHit = false;
@@ -265,6 +264,8 @@ $_SESSION["page"] = "ques";
         }
 
         var stick_now = validClusters.length;
+        var incorrect_stick_now = 0; // ★新規追加: 誤った順序の単語群の総数カウンター
+
         // 変数定義
         var targetID = "",
             targetVer = "",
@@ -278,7 +279,6 @@ $_SESSION["page"] = "ques";
         var newGroupState = [];
         var usedOldIds = {};
 
-        // ドラッグされたID群をソートして文字列化（比較用）
         var sortedDraggedStr = "";
         if (draggedIDs.length > 0) {
             sortedDraggedStr = draggedIDs.slice().sort(function(a, b) {
@@ -309,11 +309,23 @@ $_SESSION["page"] = "ques";
             });
             var membersStr = membersArr.join("#");
 
+            // ▼▼▼ 追加: 全クラスターに対する正誤判定カウント処理 (incorrect_stick_now) ▼▼▼
+            // stick_nowと同様、盤面全体の状況として記録します
+            if (CorrectWordSequence.length > 0) {
+                var currentSeqStr = "," + visualWords.join(",") + ",";
+                var correctSeqStr = "," + CorrectWordSequence.join(",") + ",";
+                // 正解の並び順に含まれていなければカウントアップ
+                if (correctSeqStr.indexOf(currentSeqStr) === -1) {
+                    incorrect_stick_now++;
+                }
+            }
+            // ▲▲▲ 追加ここまで ▲▲▲
+
             var assignedID = -1;
             var assignedVer = 1;
             var isUpdated = false;
 
-            // ターゲット判定 (ドラッグされたIDが含まれているか)
+            // ターゲット判定
             var isTarget = false;
             if (draggedIDs.length > 0) {
                 for (var x = 0; x < membersArr.length; x++) {
@@ -324,27 +336,20 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // ■■■ ID引継ぎロジック (Exact Match: 完全一致) ■■■
+            // ■■■ ID引継ぎロジック (Exact Match) ■■■
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
-
-                // 構成メンバーが完全に一致する場合
                 if (LastGroupState[k].members === membersStr) {
                     assignedID = LastGroupState[k].id;
                     usedOldIds[assignedID] = true;
 
                     if (isTarget) {
-                        // 解答欄内でのグループ全体移動の場合はバージョンを上げない
-                        // ※ここでは「移動」か「分裂」か区別せず、一旦バージョン維持or更新の候補を決める
-                        //   実際の記録スキップ判定は後述のパラメータ出力部で行う
-
-                        // 元々のグループ構成とドラッグ対象が一致している場合のみ「全体移動」としてバージョン維持
                         if (typeof array_flag !== 'undefined' && array_flag == 4 &&
                             sortedDraggedStr === membersStr &&
                             DragStartGroupState && DragStartGroupState.members === sortedDraggedStr) {
-                            assignedVer = LastGroupState[k].ver; // バージョン維持
+                            assignedVer = LastGroupState[k].ver;
                         } else {
-                            assignedVer = LastGroupState[k].ver + 1; // 更新
+                            assignedVer = LastGroupState[k].ver + 1;
                         }
                     } else {
                         assignedVer = LastGroupState[k].ver;
@@ -353,15 +358,14 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // ■■■ ID引継ぎロジック (Intersection: 一部一致・変形) ■■■
+            // ■■■ ID引継ぎロジック (Intersection) ■■■
             if (assignedID === -1) {
                 for (var k = 0; k < LastGroupState.length; k++) {
                     if (usedOldIds[LastGroupState[k].id]) continue;
                     var oldMembers = LastGroupState[k].members.split("#");
 
-                    // ▼▼▼ 2語群の「分裂」か「追加」かの判定 ▼▼▼
+                    // 2語群の分裂判定
                     if (oldMembers.length === 2) {
-                        // 新しいグループ(membersArr)が、古い2語(oldMembers)を「両方とも」含んでいるか確認
                         var containsAllOldMembers = true;
                         for (var o = 0; o < oldMembers.length; o++) {
                             if (membersArr.indexOf(oldMembers[o]) === -1) {
@@ -369,13 +373,8 @@ $_SESSION["page"] = "ques";
                                 break;
                             }
                         }
-                        // 両方含んでいない場合（＝分裂して別の相手とくっついた場合）
-                        // IDを引き継がず、新規ID発行(=stick_number1インクリメント)とするためにスキップ
-                        if (!containsAllOldMembers) {
-                            continue;
-                        }
+                        if (!containsAllOldMembers) continue;
                     }
-                    // ▲▲▲ 判定ここまで ▲▲▲
 
                     var hasIntersection = false;
                     for (var x = 0; x < membersArr.length; x++) {
@@ -411,14 +410,13 @@ $_SESSION["page"] = "ques";
                 visualMembers: visualMembersStr
             });
 
-            // 4. パラメータ出力
+            // 4. パラメータ出力 (操作対象のみ)
             if (isTarget || isUpdated) {
                 if (!isMouseDown || (isMouseDown && draggedIDs.length > 0)) {
                     targetID = assignedID;
                     targetVer = assignedVer;
                     targetCount = membersArr.length;
 
-                    // 復元判定 (same)
                     if (!isMouseDown && DragStartGroupState) {
                         if (DragStartGroupState.id === assignedID &&
                             DragStartGroupState.members === membersStr &&
@@ -427,13 +425,8 @@ $_SESSION["page"] = "ques";
                         }
                     }
 
-                    // ▼▼▼ 修正箇所: 移動時の記録スキップ判定 ▼▼▼
-                    // 「ドラッグした単語群」と「現在の単語群」が一致している場合
                     if (sortedDraggedStr === membersStr) {
-                        // さらに「ドラッグ開始時の単語群」とも一致している場合のみ「全体移動」とみなして記録をスキップ
-                        // （＝大きなグループから一部を切り出してドロップした場合は、ここではスキップされない）
                         if (DragStartGroupState && DragStartGroupState.members === sortedDraggedStr) {
-                            // ただし、問題提示欄(0)からの移動の場合は記録する
                             if (typeof array_flag !== 'undefined' && array_flag == 4) {
                                 targetID = "";
                                 targetVer = "";
@@ -441,9 +434,7 @@ $_SESSION["page"] = "ques";
                             }
                         }
                     }
-                    // ▲▲▲ 修正ここまで ▲▲▲
 
-                    // 座標計算
                     var minX = 99999;
                     var maxX = -99999;
                     var sumY = 0;
@@ -457,7 +448,6 @@ $_SESSION["page"] = "ques";
                     targetRightX = maxX;
                     targetY = Math.round(sumY / domElements.length);
 
-                    // 不正解判定
                     if (CorrectWordSequence.length > 0) {
                         var currentSeqStr = "," + visualWords.join(",") + ",";
                         var correctSeqStr = "," + CorrectWordSequence.join(",") + ",";
@@ -469,7 +459,7 @@ $_SESSION["page"] = "ques";
             }
         }
 
-        // --- B. 盤面から消えた群（ドラッグ中の群など）の維持処理 ---
+        // --- B. 維持処理 ---
         if (isMouseDown && draggedIDs.length > 0) {
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
@@ -499,7 +489,8 @@ $_SESSION["page"] = "ques";
             leftX: (targetLeftX !== "") ? targetLeftX : "",
             rightX: (targetRightX !== "") ? targetRightX : "",
             topY: (targetY !== "") ? targetY : "",
-            incorrect: (targetIncorrect !== "") ? targetIncorrect : ""
+            incorrect: (targetIncorrect !== "") ? targetIncorrect : "",
+            incorrectNow: incorrect_stick_now // ★戻り値に追加（総数）
         };
     }
 
@@ -1916,6 +1907,7 @@ $stmt->close();
             '&param23=' + encodeURIComponent(stickInfo.rightX) +
             '&param24=' + encodeURIComponent(stickInfo.topY) +
             '&param25=' + encodeURIComponent(stickInfo.incorrect) +
+            '&param26=' + encodeURIComponent(stickInfo.incorrectNow) + // incorrect_stick_now
             '&lang=' + encodeURIComponent(testLangType);
         // 注意: param9, param10はtmpfile.php側で固定でNULLを入れる仕様のようなので、
         // ここではJSから値を送ってもtmpfile.php側で無視されるか、既存コードに合わせて空を送ります。
@@ -2493,6 +2485,7 @@ $stmt->close();
             '&param23=' + encodeURIComponent(stickInfo.rightX) +
             '&param24=' + encodeURIComponent(stickInfo.topY) +
             '&param25=' + encodeURIComponent(stickInfo.incorrect) +
+            '&param26=' + encodeURIComponent(stickInfo.incorrectNow) + // incorrect_stick_now
             '&lang=' + encodeURIComponent(testLangType);
 
         new Ajax.Request(URL + 'tmpfile.php', {

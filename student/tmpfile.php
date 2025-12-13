@@ -44,6 +44,7 @@ $p23 = getParam('param23'); // right_groupword_X
 $p24 = getParam('param24'); // groupword_Y
 
 $p25 = getParam('param25'); // incorrect_stick
+$p26 = getParam('param26');
 
 // SQL文の構築
 $str = "INSERT INTO " . $FName2 . " VALUES("
@@ -75,7 +76,8 @@ $str = "INSERT INTO " . $FName2 . " VALUES("
 	. $p22 . "," // left_groupword_X
 	. $p23 . "," // right_groupword_X
 	. $p24 . "," // groupword_Y
-	. $p25       // incorrect_stick
+	. $p25 . "," // incorrect_stick
+	. $p26       // incorrect_stick_now
 	. ")";
 
 //ファイル書き込みコード
