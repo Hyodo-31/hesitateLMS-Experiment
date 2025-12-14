@@ -780,16 +780,27 @@ $stmt->close();
         myCheck2(0);
         //===================
 
-        window.addEventListener('unload', function() {
+        /*window.addEventListener('unload', function() {
             // ewrite.phpを呼び出して、サーバー上の一時ファイルをデータベースに書き込む
             // この通信はページのクローズを妨げず、バックグラウンドで実行される
             navigator.sendBeacon('ewrite.php');
-        });
+        });*/
     }
     //ロードイベント終了========================================
 
     //問題の出題関数
     function setques() {
+        // 1. linedata送信フラグのリセット（データ欠損対策）
+        linedataFlg = false; 
+
+        // 2. 単語群IDのリセット（ID継続バグ対策）
+        GlobalGroupCounter = 0; 
+
+        // 3. 状態管理変数のリセット
+        LastGroupState = []; 
+        DragStartGroupState = null;
+        GlobalGroupMoveCounts = {};
+        GlobalGroupFormationHistory = {};
         //OID=出題順
         Fixmsg.innerHTML = <?= json_encode(translate('ques.php_364行目_情報')) ?>;
         myCheck(0);
@@ -3506,12 +3517,27 @@ $stmt->close();
 
         if (!(linedataFlg)) {
             linedataFlg = true;
+            var noCacheParam = '&t=' + new Date().getTime();
             new Ajax.Request(URL + 'tmpfile2.php', {
                 method: 'get',
                 onSuccess: getA,
                 onFailure: getE,
-                parameters: $params
+                parameters: $params + noCacheParam // ここに追加
             });
+
+            // ▼▼▼ 追加: マウス軌跡データ(linedatamouse)の保存(ewrite.php) ▼▼▼
+            // ここで呼び出すことで、1問終わるごとにデータがDBに確定されます
+            new Ajax.Request(URL + 'ewrite.php', {
+                method: 'get',
+                onSuccess: function(req) {
+                    // 成功時の処理（必要であればコンソールログなど）
+                    console.log("Mouse data saved for this question.");
+                },
+                onFailure: function(req) {
+                    alert("マウスデータの保存に失敗しました");
+                }
+            });
+            // ▲▲▲ 追加ここまで ▲▲▲
 
             function getA(req) {
                 //ここでuser_progressを更新する
