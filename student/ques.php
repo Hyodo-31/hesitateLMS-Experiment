@@ -198,6 +198,8 @@ $_SESSION["page"] = "ques";
     var LastGroupState = []; // 直前の単語群の状態 [{id: 1, ver: 1, members: "1#2"}]
     // ▼▼▼ 修正: ドラッグ開始時の状態保持用変数 ▼▼▼
     var DragStartGroupState = null; // { id: 1, members: "1#3#4#8" }
+    var GlobalGroupMoveCounts = {}; // { groupID: count } 移動回数保持
+    var GlobalGroupFormationHistory = {}; // { membersStr: count } 構成履歴保持
 
     // ▼▼▼ 修正: IDではなく「単語テキスト」の正解順序を保持 ▼▼▼
     var CorrectWordSequence = [];
@@ -222,7 +224,7 @@ $_SESSION["page"] = "ques";
         CorrectWordSequence = seq;
         console.log("Correct Word Sequence:", CorrectWordSequence);
     }
-    // ======================= ▼▼▼ 修正版: incorrect_stick_now (誤った群の総数) 実装版 ▼▼▼ =======================
+    // ======================= ▼▼▼ 修正版: stick_same テキスト順序判定版 calculateStickParams ▼▼▼ =======================
     /**
      * @param {boolean} isMouseDown 
      * @param {Array} draggedIDs - ドラッグ中の単語IDの配列
@@ -249,6 +251,41 @@ $_SESSION["page"] = "ques";
                         members: LastGroupState[k].members,
                         visualMembers: LastGroupState[k].visualMembers
                     };
+
+                    // ▼▼▼ 分裂時の残存グループカウント処理 (テキスト順序ベース) ▼▼▼
+                    // 以前の状態(LastGroupState)の visualMembers は視覚順でIDが並んでいる
+                    var oldVisualMembers = LastGroupState[k].visualMembers.split("#");
+                    var remainingVisualIDs = [];
+
+                    for (var m = 0; m < oldVisualMembers.length; m++) {
+                        // ドラッグされていないIDを、元の順序を保ったまま抽出
+                        if (draggedIDs.indexOf(oldVisualMembers[m]) === -1) {
+                            remainingVisualIDs.push(oldVisualMembers[m]);
+                        }
+                    }
+
+                    // 残ったメンバーが2語以上の場合
+                    if (remainingVisualIDs.length >= 2) {
+                        // IDからテキスト(正規化済み)を取得してキーを作成
+                        var remainingTexts = [];
+                        for (var r = 0; r < remainingVisualIDs.length; r++) {
+                            var el = document.getElementById(remainingVisualIDs[r]);
+                            if (el) {
+                                var txt = el.innerHTML.replace(/[.,?!:;)'’]+/g, "").trim().toLowerCase();
+                                remainingTexts.push(txt);
+                            }
+                        }
+                        var remainingKey = remainingTexts.join("|"); // 例: "this|is|a"
+
+                        // 履歴を更新
+                        if (!GlobalGroupFormationHistory[remainingKey]) {
+                            GlobalGroupFormationHistory[remainingKey] = 1;
+                        } else {
+                            GlobalGroupFormationHistory[remainingKey]++;
+                        }
+                    }
+                    // ▲▲▲ 追加ここまで ▲▲▲
+
                     break;
                 }
             }
@@ -264,7 +301,7 @@ $_SESSION["page"] = "ques";
         }
 
         var stick_now = validClusters.length;
-        var incorrect_stick_now = 0; // ★新規追加: 誤った順序の単語群の総数カウンター
+        var incorrect_stick_now = 0;
 
         // 変数定義
         var targetID = "",
@@ -275,6 +312,10 @@ $_SESSION["page"] = "ques";
             targetRightX = "",
             targetY = "",
             targetIncorrect = "";
+
+        // 返却用変数
+        var val_stick_move = "";
+        var val_stick_same = "";
 
         var newGroupState = [];
         var usedOldIds = {};
@@ -288,44 +329,43 @@ $_SESSION["page"] = "ques";
 
         // --- A. 現在盤面にある群の処理 ---
         for (var i = 0; i < validClusters.length; i++) {
-            var domElements = validClusters[i].members;
-            var membersArr = [];
-            var visualIds = [];
-            var visualWords = [];
+            var domElements = validClusters[i].members; // 既に視覚順(左→右)に並んでいる
+            var membersArr = []; // ID管理用（ソートして使用）
+            var visualIds = []; // バージョン管理用（視覚順ID）
+            var visualWords = []; // 不正解判定・stick_same用（視覚順テキスト）
 
             for (var m = 0; m < domElements.length; m++) {
                 var id = domElements[m].id;
                 membersArr.push(id);
                 visualIds.push(id);
 
-                // テキストを取得・正規化
                 var text = domElements[m].innerHTML.replace(/[.,?!:;)'’]+/g, "").trim().toLowerCase();
                 visualWords.push(text);
             }
 
-            var visualMembersStr = visualIds.join("#");
+            // バージョン管理・ID引継ぎ用は IDベース(ソート済) で行う
+            var visualMembersStr = visualIds.join("#"); // 視覚順ID文字列
             membersArr.sort(function(a, b) {
                 return a - b
             });
-            var membersStr = membersArr.join("#");
+            var membersStr = membersArr.join("#"); // ソート済ID文字列
 
-            // ▼▼▼ 追加: 全クラスターに対する正誤判定カウント処理 (incorrect_stick_now) ▼▼▼
-            // stick_nowと同様、盤面全体の状況として記録します
+            // ★ stick_same 用のキーは「視覚順のテキスト」で作る
+            var groupKey = visualWords.join("|");
+
+            // incorrect_stick_now カウント
             if (CorrectWordSequence.length > 0) {
                 var currentSeqStr = "," + visualWords.join(",") + ",";
                 var correctSeqStr = "," + CorrectWordSequence.join(",") + ",";
-                // 正解の並び順に含まれていなければカウントアップ
                 if (correctSeqStr.indexOf(currentSeqStr) === -1) {
                     incorrect_stick_now++;
                 }
             }
-            // ▲▲▲ 追加ここまで ▲▲▲
 
             var assignedID = -1;
             var assignedVer = 1;
             var isUpdated = false;
 
-            // ターゲット判定
             var isTarget = false;
             if (draggedIDs.length > 0) {
                 for (var x = 0; x < membersArr.length; x++) {
@@ -336,13 +376,12 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // ■■■ ID引継ぎロジック (Exact Match) ■■■
+            // ID引継ぎ (Exact Match)
             for (var k = 0; k < LastGroupState.length; k++) {
                 if (usedOldIds[LastGroupState[k].id]) continue;
                 if (LastGroupState[k].members === membersStr) {
                     assignedID = LastGroupState[k].id;
                     usedOldIds[assignedID] = true;
-
                     if (isTarget) {
                         if (typeof array_flag !== 'undefined' && array_flag == 4 &&
                             sortedDraggedStr === membersStr &&
@@ -358,13 +397,11 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // ■■■ ID引継ぎロジック (Intersection) ■■■
+            // ID引継ぎ (Intersection)
             if (assignedID === -1) {
                 for (var k = 0; k < LastGroupState.length; k++) {
                     if (usedOldIds[LastGroupState[k].id]) continue;
                     var oldMembers = LastGroupState[k].members.split("#");
-
-                    // 2語群の分裂判定
                     if (oldMembers.length === 2) {
                         var containsAllOldMembers = true;
                         for (var o = 0; o < oldMembers.length; o++) {
@@ -375,7 +412,6 @@ $_SESSION["page"] = "ques";
                         }
                         if (!containsAllOldMembers) continue;
                     }
-
                     var hasIntersection = false;
                     for (var x = 0; x < membersArr.length; x++) {
                         if (oldMembers.indexOf(membersArr[x]) !== -1) {
@@ -394,7 +430,7 @@ $_SESSION["page"] = "ques";
                 }
             }
 
-            // ■■■ 新規ID発行 ■■■
+            // 新規ID発行
             if (assignedID === -1) {
                 GlobalGroupCounter++;
                 assignedID = GlobalGroupCounter;
@@ -406,11 +442,11 @@ $_SESSION["page"] = "ques";
             newGroupState.push({
                 id: assignedID,
                 ver: assignedVer,
-                members: membersStr,
-                visualMembers: visualMembersStr
+                members: membersStr, // ソート済ID (ID引継ぎ判定用)
+                visualMembers: visualMembersStr // 視覚順ID (分裂判定用)
             });
 
-            // 4. パラメータ出力 (操作対象のみ)
+            // パラメータ算出 (操作対象のみ)
             if (isTarget || isUpdated) {
                 if (!isMouseDown || (isMouseDown && draggedIDs.length > 0)) {
                     targetID = assignedID;
@@ -425,16 +461,66 @@ $_SESSION["page"] = "ques";
                         }
                     }
 
+                    // ▼▼▼ stick_move / stick_same 判定ロジック ▼▼▼
+                    var isMoveOperation = false;
+
+                    // 1. 移動判定
                     if (sortedDraggedStr === membersStr) {
                         if (DragStartGroupState && DragStartGroupState.members === sortedDraggedStr) {
-                            if (typeof array_flag !== 'undefined' && array_flag == 4) {
-                                targetID = "";
-                                targetVer = "";
-                                targetSame = "";
-                            }
+                            isMoveOperation = true;
                         }
                     }
 
+                    if (isMoveOperation) {
+                        // --- stick_move ---
+                        if (!GlobalGroupMoveCounts[assignedID]) {
+                            val_stick_move = 0;
+                        } else {
+                            val_stick_move = GlobalGroupMoveCounts[assignedID];
+                        }
+
+                        if (!isMouseDown) {
+                            if (!GlobalGroupMoveCounts[assignedID]) GlobalGroupMoveCounts[assignedID] = 0;
+                            GlobalGroupMoveCounts[assignedID]++;
+                            val_stick_move = GlobalGroupMoveCounts[assignedID];
+                        }
+                    } else {
+                        // --- stick_same ---
+                        // ★修正: groupKey (テキスト順序) を使用して履歴を管理
+                        var currentCount = 0;
+                        if (GlobalGroupFormationHistory[groupKey]) {
+                            currentCount = GlobalGroupFormationHistory[groupKey];
+                        }
+
+                        if (isMouseDown) {
+                            if (currentCount > 0) {
+                                val_stick_same = currentCount - 1;
+                            } else {
+                                val_stick_same = 0;
+                            }
+                        } else {
+                            // MouseUp時: 更新
+                            if (currentCount === 0) {
+                                GlobalGroupFormationHistory[groupKey] = 1; // 1回目
+                                val_stick_same = 0;
+                            } else {
+                                GlobalGroupFormationHistory[groupKey]++; // 加算
+                                val_stick_same = GlobalGroupFormationHistory[groupKey] - 1;
+                            }
+                        }
+                    }
+                    // ▲▲▲ 判定ここまで ▲▲▲
+
+                    // 移動時は既存カラム(num1, num2等)を記録しない
+                    if (isMoveOperation) {
+                        if (typeof array_flag !== 'undefined' && array_flag == 4) {
+                            targetID = "";
+                            targetVer = "";
+                            targetSame = "";
+                        }
+                    }
+
+                    // 座標計算
                     var minX = 99999;
                     var maxX = -99999;
                     var sumY = 0;
@@ -490,7 +576,9 @@ $_SESSION["page"] = "ques";
             rightX: (targetRightX !== "") ? targetRightX : "",
             topY: (targetY !== "") ? targetY : "",
             incorrect: (targetIncorrect !== "") ? targetIncorrect : "",
-            incorrectNow: incorrect_stick_now // ★戻り値に追加（総数）
+            incorrectNow: incorrect_stick_now,
+            stickMove: val_stick_move,
+            stickSame: val_stick_same
         };
     }
 
@@ -1908,6 +1996,8 @@ $stmt->close();
             '&param24=' + encodeURIComponent(stickInfo.topY) +
             '&param25=' + encodeURIComponent(stickInfo.incorrect) +
             '&param26=' + encodeURIComponent(stickInfo.incorrectNow) + // incorrect_stick_now
+            '&param27=' + encodeURIComponent(stickInfo.stickMove) + // stick_move
+            '&param28=' + encodeURIComponent(stickInfo.stickSame) + // stick_same
             '&lang=' + encodeURIComponent(testLangType);
         // 注意: param9, param10はtmpfile.php側で固定でNULLを入れる仕様のようなので、
         // ここではJSから値を送ってもtmpfile.php側で無視されるか、既存コードに合わせて空を送ります。
@@ -2486,6 +2576,8 @@ $stmt->close();
             '&param24=' + encodeURIComponent(stickInfo.topY) +
             '&param25=' + encodeURIComponent(stickInfo.incorrect) +
             '&param26=' + encodeURIComponent(stickInfo.incorrectNow) + // incorrect_stick_now
+            '&param27=' + encodeURIComponent(stickInfo.stickMove) + // stick_move
+            '&param28=' + encodeURIComponent(stickInfo.stickSame) + // stick_same
             '&lang=' + encodeURIComponent(testLangType);
 
         new Ajax.Request(URL + 'tmpfile.php', {
@@ -3394,6 +3486,10 @@ $stmt->close();
         $QAData["TF"] = TF;
         $QAData["Time"] = mTimers;
         $QAData["Qid"] = Qid;
+
+        // ▼▼▼ 追加: 正解文をデータ配列に格納 ▼▼▼
+        $QAData["CorrectAnswer"] = correctAnswer;
+
         var $params = 'param1=' + encodeURIComponent($QAData["WID"]) +
             '&param2=' + encodeURIComponent($QAData["Date"]) +
             '&param3=' + encodeURIComponent($QAData["TF"]) +
@@ -3405,6 +3501,7 @@ $stmt->close();
             '&param9=' + encodeURIComponent($QAData["hesitate2"]) +
             '&param10=' + encodeURIComponent($QAData["comments"]) +
             '&param11=' + encodeURIComponent($QAData["check"]) +
+            '&param12=' + encodeURIComponent($QAData["CorrectAnswer"]) +
             '&lang=' + encodeURIComponent(testLangType);
 
         if (!(linedataFlg)) {
