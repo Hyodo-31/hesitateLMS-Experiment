@@ -3008,7 +3008,11 @@ $stmt->close();
         //固定ラベルチェック
         for (i = 0; i < FixNum.length; i++) {
             var fixcheck = 0;
-            fixcheck = Mylabels_ea[FixNum[i]].innerHTML;
+            if (sortedForCheck[FixNum[i]]) {
+                fixcheck = sortedForCheck[FixNum[i]].innerHTML;
+            } else {
+                fixcheck = ""; // 該当位置に単語がない場合
+            }
             if (FixLabels[i] != fixcheck) {
                 var fixnum2 = FixNum[i] + 1
                 var confirm_msg = <?= json_encode(translate('ques.php_783行目_位置固定単語である')) ?> + FixLabels[i] + <?= json_encode(translate('ques.php_783行目_が')) ?> + fixnum2 + <?= json_encode(translate('ques.php_783行目_番目に来ていませんがよろしいですか')) ?>;
